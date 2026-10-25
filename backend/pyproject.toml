@@ -1,0 +1,69 @@
+[project]
+name = "support-backend"
+version = "0.1.0"
+description = "Support AI Assistant — FastAPI backend"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy[asyncio]",
+    "asyncpg",
+    "alembic",
+    "pydantic",
+    "pydantic-settings",
+    "python-multipart",
+    "sse-starlette",
+    "langgraph",
+    "langchain",
+    "langchain-openai",
+    # chunking.py RecursiveCharacterTextSplitter kullanıyor; langchain 1.x'te
+    # ayrı paket (langchain bağımlılığı olarak artık gelmiyor).
+    "langchain-text-splitters",
+    # Pin: 0.4.x, ragas 0.4.3'ün import ettiği vertexai modüllerini kaldırdı
+    # (ragas 0.4.3 hâlâ eski modül yolunu kullanıyor; 0.3.31 uyumlu).
+    "langchain-community==0.3.31",
+    "pgvector",
+    "sentence-transformers",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    "httpx",
+    # Faz 4: RAGAS metrikleri (faithfulness, answer_relevancy, context_precision)
+    "ragas",
+    # Faz 6: Langfuse observability (trace + feedback; anahtarsız no-op)
+    "langfuse",
+    # Faz 0 (multi-modal): PDF metin/tablo ayrıştırma (pdfplumber),
+    # sayfa görselleri (PyMuPDF), tablo tespiti (camelot-py[cv]) ve
+    # görüntü işleme (pillow).
+    "pdfplumber",
+    "pymupdf",
+    "camelot-py[cv]",
+    "pillow",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-timeout",
+    "ruff",
+    "black",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+asyncio_mode = "auto"

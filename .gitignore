@@ -35,6 +35,9 @@ coverage.xml
 hf_cache/
 .cache/
 
+# PDF ayrıştırma çıktıları (Faz 1: storage/images)
+storage/
+
 # Log dosyaları
 *.log
 logs/

@@ -1,8 +1,12 @@
 """Uygulama ayarları: .env dosyasından okunur."""
 
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Repo kökü: backend/ (config.py → app/core/config.py → parents[2]).
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -29,6 +33,8 @@ class Settings(BaseSettings):
     LANGFUSE_HOST: str = "https://cloud.langfuse.com"
     TEST_DATABASE_URL: str | None = None  # host'tan test DB'si (localhost)
     TEST_DATABASE_URL_DOCKER: str | None = None  # container içinden test DB'si (postgres)
+    # Faz 1: PDF'ten çıkarılan görsellerin kaydedileceği kök dizin (backend/storage).
+    STORAGE_DIR: str = str(BASE_DIR / "storage")
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

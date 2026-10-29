@@ -17,9 +17,11 @@ from app.schemas.document import (
     DocumentListResponse,
     DocumentRead,
     DocumentUpdate,
+    ParsePdfResponse,
 )
 from app.services.document import DocumentService
 from app.services.ingestion import DocumentIngestionService
+from app.services.pdf_parser import PDFIngestionService
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
@@ -64,6 +66,27 @@ async def index_document(document_id: UUID, db: DbDep, current_user: UserDep) ->
     if result is None:
         raise HTTPException(status_code=404, detail="Document not found")
     return IndexResponse(**result)
+
+
+@router.post("/{document_id}/parse-pdf", response_model=ParsePdfResponse)
+async def parse_document_pdf(
+    document_id: UUID, db: DbDep, current_user: UserDep
+) -> ParsePdfResponse:
+    """Dokümanın PDF dosyasını ayrıştırır: sayfa, tablo ve görselleri kaydeder.
+
+    Dosya yolu Document.file_path alanından okunur; ayrıştırma idempotenttir
+    (önceki PDFPage/PDFTable/PDFImage kayıtları silinir).
+    """
+    doc = await DocumentService(db, UUID(current_user.id)).get(document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not doc.file_path:
+        raise HTTPException(status_code=400, detail="Document has no file_path")
+    try:
+        result = await PDFIngestionService(db).parse_document(doc)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    return ParsePdfResponse(**result)
 
 
 @router.get("/{document_id}", response_model=DocumentRead)

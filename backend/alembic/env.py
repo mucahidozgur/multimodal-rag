@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 from app.core.config import get_settings
 from app.core.db import Base
-from app.models import Chunk, Document  # noqa: F401  (autogenerate için import)
+from app.models import Chunk, Document, PDFImage, PDFPage, PDFTable  # noqa: F401
 
 config = context.config
 

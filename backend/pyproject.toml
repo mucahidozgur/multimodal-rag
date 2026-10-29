@@ -38,6 +38,8 @@ dependencies = [
     "pymupdf",
     "camelot-py[cv]",
     "pillow",
+    # Faz 1: testlerde örnek PDF üretimi (test_pdf_parser.py)
+    "reportlab",
 ]
 
 [project.optional-dependencies]

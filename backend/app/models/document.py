@@ -1,10 +1,10 @@
-"""SQLAlchemy ORM modelleri: Document ve Chunk."""
+"""SQLAlchemy ORM modelleri: Document, Chunk ve PDF ayrıştırma modelleri."""
 
 import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Computed, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, Computed, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -13,7 +13,7 @@ from app.core.db import Base
 
 
 class Document(Base):
-    """Doküman; chunk'larıyla bire-çok ilişkili."""
+    """Doküman; chunk'ları ve PDF sayfalarıyla bire-çok ilişkili."""
 
     __tablename__ = "documents"
 
@@ -22,6 +22,8 @@ class Document(Base):
     content: Mapped[str] = mapped_column(Text)
     owner_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     source: Mapped[str] = mapped_column(String(100), default="upload")
+    # Faz 1: PDF dosyasının disk üzerindeki yolu (parse-pdf endpoint'i buradan okur).
+    file_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True
@@ -29,6 +31,9 @@ class Document(Base):
 
     chunks: Mapped[list["Chunk"]] = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
+    )
+    pages: Mapped[list["PDFPage"]] = relationship(
+        "PDFPage", back_populates="document", cascade="all, delete-orphan"
     )
 
 
@@ -57,3 +62,58 @@ class Chunk(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     document: Mapped["Document"] = relationship("Document", back_populates="chunks")
+
+
+class PDFPage(Base):
+    """PDF'in tek sayfası: ham metin + sayfadaki tablolar ve görseller (Faz 1)."""
+
+    __tablename__ = "pdf_pages"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE")
+    )
+    page_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    raw_text: Mapped[str | None] = mapped_column(Text)  # Çıkarılan ham metin
+
+    document: Mapped["Document"] = relationship("Document", back_populates="pages")
+    tables: Mapped[list["PDFTable"]] = relationship(
+        "PDFTable", back_populates="page", cascade="all, delete-orphan"
+    )
+    images: Mapped[list["PDFImage"]] = relationship(
+        "PDFImage", back_populates="page", cascade="all, delete-orphan"
+    )
+
+
+class PDFTable(Base):
+    """Sayfadan çıkarılan tablo: JSON hücreler + markdown gösterimi."""
+
+    __tablename__ = "pdf_tables"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pdf_pages.id", ondelete="CASCADE")
+    )
+    table_index: Mapped[int | None] = mapped_column(Integer)  # Sayfadaki kaçıncı tablo
+    data_json: Mapped[list | None] = mapped_column(JSON)  # [[cell1, cell2], [cell3, cell4]]
+    markdown_content: Mapped[str | None] = mapped_column(Text)  # Tablo markdown olarak
+
+    page: Mapped["PDFPage"] = relationship("PDFPage", back_populates="tables")
+
+
+class PDFImage(Base):
+    """Sayfadan çıkarılan görsel; dosya diskte, meta bilgiler DB'de."""
+
+    __tablename__ = "pdf_images"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    page_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pdf_pages.id", ondelete="CASCADE")
+    )
+    image_index: Mapped[int | None] = mapped_column(Integer)  # Sayfadaki kaçıncı görsel
+    image_path: Mapped[str | None] = mapped_column(String)  # storage/images/{uuid}.png
+    image_type: Mapped[str | None] = mapped_column(String)  # "chart", "figure", "logo", "unknown"
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+
+    page: Mapped["PDFPage"] = relationship("PDFPage", back_populates="images")

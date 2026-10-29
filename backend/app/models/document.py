@@ -52,6 +52,11 @@ class Chunk(Base):
     # Hiyerarşik chunking: chunk'ın ait olduğu başlık zinciri ("Ana > Alt").
     # Eski (Faz 0-2) chunk'lar için None kalabilir.
     heading: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Faz 2: chunk'ın kaynak tipi ("text" | "table" | "image") ve hangi PDF
+    # kaydından geldiği (PDFPage/PDFTable/PDFImage id) + citation için sayfa.
+    chunk_type: Mapped[str] = mapped_column(String(20), nullable=False, default="text", index=True)
+    source_ref_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # FTS (BM25) araması için generated column: content her yazıldığında DB
     # tarafında to_tsvector('simple', content) ile otomatik güncellenir.
     tsv_content: Mapped[str | None] = mapped_column(

@@ -33,6 +33,8 @@ class HybridSearchRequest(BaseModel):
     rerank_candidates: int = Field(default=20, ge=1, le=50, description="Rerank öncesi aday sayısı")
     # Parent retrieval: en iyi chunk'ın başlığındaki diğer chunk'lar da döner.
     expand_context: bool = False
+    # Faz 2: yalnızca belirtilen chunk tipleri aranır; None → tümü.
+    chunk_types: list[Literal["text", "table", "image"]] | None = None
 
 
 class SearchResultItem(BaseModel):
@@ -51,6 +53,10 @@ class SearchResultItem(BaseModel):
     heading: str | None = None
     # Parent retrieval ile eklenen bağlam chunk'ı işareti (skorlanmamış).
     expanded: bool | None = None
+    # Faz 2: chunk'ın kaynak tipi ("text" | "table" | "image"); eski chunk'larda None.
+    chunk_type: str | None = None
+    # Faz 2: citation için PDF sayfa numarası; eski chunk'larda None.
+    page_number: int | None = None
 
 
 class SearchResponse(BaseModel):

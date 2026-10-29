@@ -79,8 +79,12 @@ class RAGService:
         query: str,
         document_ids: list[UUID] | None = None,
         limit: int = 5,
+        chunk_types: list[str] | None = None,
     ) -> list[dict]:
-        """En benzer chunk'ları döndürür; owner filtresi JOIN ile uygulanır."""
+        """En benzer chunk'ları döndürür; owner filtresi JOIN ile uygulanır.
+
+        chunk_types verilirse yalnızca o tipler ("text"|"table"|"image") aranır.
+        """
         query_emb = self.embeddings.embed_query(query)
         similarity = (1 - Chunk.embedding.cosine_distance(query_emb)).label("similarity")
         stmt = (
@@ -93,6 +97,8 @@ class RAGService:
         )
         if document_ids is not None:
             stmt = stmt.where(Chunk.document_id.in_(document_ids))
+        if chunk_types is not None:
+            stmt = stmt.where(Chunk.chunk_type.in_(chunk_types))
 
         rows = (await self.db.execute(stmt)).all()
         return [
@@ -104,17 +110,22 @@ class RAGService:
                 "similarity": float(sim),
                 "chunk_index": chunk.chunk_index,
                 "heading": chunk.heading,
+                "chunk_type": chunk.chunk_type,
+                "page_number": chunk.page_number,
             }
             for chunk, title, sim in rows
         ]
 
-    async def search_bm25(self, query: str, limit: int = 20) -> list[dict]:
+    async def search_bm25(
+        self, query: str, limit: int = 20, chunk_types: list[str] | None = None
+    ) -> list[dict]:
         """PostgreSQL FTS ile kelime tabanlı arama (websearch_to_tsquery + ts_rank).
 
         tsv_content generated column'u 'simple' config ile üretilir; aynı config
         sorguda da kullanıldığı için token'lar birebir eşleşir. Owner filtresi
         JOIN ile uygulanır. similarity alanı ts_rank skoru taşır (0-sınırlı
-        değildir; yalnızca sıralama anlamı taşır).
+        değildir; yalnızca sıralama anlamı taşır). chunk_types verilirse
+        yalnızca o tipler aranır.
         """
         if not query.strip():
             return []
@@ -128,6 +139,8 @@ class RAGService:
             .order_by(rank.desc())
             .limit(limit)
         )
+        if chunk_types is not None:
+            stmt = stmt.where(Chunk.chunk_type.in_(chunk_types))
         rows = (await self.db.execute(stmt)).all()
         return [
             {
@@ -138,21 +151,39 @@ class RAGService:
                 "similarity": float(rank_val),
                 "chunk_index": chunk.chunk_index,
                 "heading": chunk.heading,
+                "chunk_type": chunk.chunk_type,
+                "page_number": chunk.page_number,
             }
             for chunk, title, rank_val in rows
         ]
 
     @observe_rag("search_hybrid")
-    async def search_hybrid(self, query: str, limit: int = 5, alpha: float = 0.5) -> list[dict]:
+    async def search_hybrid(
+        self,
+        query: str,
+        limit: int = 5,
+        alpha: float = 0.5,
+        chunk_types: list[str] | None = None,
+    ) -> list[dict]:
         """Vektör + BM25 sonuçlarını RRF ile birleştirir.
 
         alpha: 0.0 → yalnız BM25, 1.0 → yalnız vektör, 0.5 → eşit ağırlık.
         Her kaynaktan limit * 2 aday toplanır; birleşik listeden ilk limit döner.
+        chunk_types: None → tüm tipler; aksi halde yalnızca listelenen tipler
+        ("text"|"table"|"image") iki tarafta da (vektör + BM25) filtrelenir.
         """
-        update_observation_input({"query": query, "limit": limit, "alpha": alpha})
+        update_observation_input(
+            {"query": query, "limit": limit, "alpha": alpha, "chunk_types": chunk_types}
+        )
         pool = limit * 2
-        vector_results = await self.search(query, limit=pool) if alpha > 0.0 else []
-        bm25_results = await self.search_bm25(query, limit=pool) if alpha < 1.0 else []
+        vector_results = (
+            await self.search(query, limit=pool, chunk_types=chunk_types) if alpha > 0.0 else []
+        )
+        bm25_results = (
+            await self.search_bm25(query, limit=pool, chunk_types=chunk_types)
+            if alpha < 1.0
+            else []
+        )
         fused = rrf_fuse(
             vector_results,
             bm25_results,
@@ -196,17 +227,21 @@ class RAGService:
         alpha: float = 0.5,
         rerank_candidates: int = 20,
         expand_context: bool = False,
+        chunk_types: list[str] | None = None,
     ) -> list[dict]:
         """Hybrid arama → cross-encoder rerank: en iyi limit chunk'ı döndürür.
 
         Akış: search_hybrid(limit=rerank_candidates) aday havuzunu kurar,
         rerank(top_k=limit) bunlardan en isabetli olanları seçer.
+        chunk_types filtresi aday havuzuna uygulanır.
 
         expand_context=True ise (parent retrieval): en iyi chunk'ın heading'i
         alınır ve aynı başlıktaki diğer chunk'lar sonuca eklenir (rerank'te
         zaten olanlar çıkarılır; eklenenler expanded=True işaretlenir).
         """
-        candidates = await self.search_hybrid(query, limit=rerank_candidates, alpha=alpha)
+        candidates = await self.search_hybrid(
+            query, limit=rerank_candidates, alpha=alpha, chunk_types=chunk_types
+        )
         results = await self.rerank(query, candidates, top_k=limit)
         if expand_context and results:
             top_heading = results[0].get("heading")
@@ -241,6 +276,8 @@ class RAGService:
                 "similarity": 1.0,
                 "chunk_index": chunk.chunk_index,
                 "heading": chunk.heading,
+                "chunk_type": chunk.chunk_type,
+                "page_number": chunk.page_number,
             }
             for chunk, title in rows
         ]
@@ -271,6 +308,8 @@ class RAGService:
                 "similarity": 0.0,  # skorlanmadı; yalnızca bağlam genişletmesi
                 "chunk_index": chunk.chunk_index,
                 "heading": chunk.heading,
+                "chunk_type": chunk.chunk_type,
+                "page_number": chunk.page_number,
             }
             for chunk, title in rows
         ]

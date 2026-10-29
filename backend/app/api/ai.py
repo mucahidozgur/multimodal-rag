@@ -73,9 +73,12 @@ async def search_hybrid(
             body.alpha,
             body.rerank_candidates,
             expand_context=body.expand_context,
+            chunk_types=body.chunk_types,
         )
     else:
-        results = await service.search_hybrid(body.query, body.limit, body.alpha)
+        results = await service.search_hybrid(
+            body.query, body.limit, body.alpha, chunk_types=body.chunk_types
+        )
     return SearchResponse(query=body.query, results=results)
 
 

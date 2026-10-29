@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str = ""
     GROQ_BASE_URL: str = "https://api.groq.com/openai/v1"
     LLM_MODEL: str = "qwen/qwen3.8-27b"
+    # Faz 3: Groq Vision (grafik/figure okuma). llama-3.2-90b-vision-preview
+    # Groq'ta kaldırıldı; güncel vision modeli llama-4-scout (17b-16e).
+    VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIM: int = 384
     RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"

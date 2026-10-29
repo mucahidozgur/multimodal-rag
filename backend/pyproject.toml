@@ -16,6 +16,8 @@ dependencies = [
     "langgraph",
     "langchain",
     "langchain-openai",
+    # Faz 3: Groq Vision (ChatGroq multimodal) — grafik/figure okuma
+    "langchain-groq",
     # chunking.py RecursiveCharacterTextSplitter kullanıyor; langchain 1.x'te
     # ayrı paket (langchain bağımlılığı olarak artık gelmiyor).
     "langchain-text-splitters",

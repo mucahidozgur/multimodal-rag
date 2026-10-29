@@ -18,6 +18,7 @@ from app.schemas.document import (
     DocumentRead,
     DocumentUpdate,
     ParsePdfResponse,
+    ReindexImagesResponse,
 )
 from app.services.document import DocumentService
 from app.services.ingestion import DocumentIngestionService
@@ -87,6 +88,21 @@ async def parse_document_pdf(
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
     return ParsePdfResponse(**result)
+
+
+@router.post("/{document_id}/reindex-images", response_model=ReindexImagesResponse)
+async def reindex_document_images(
+    document_id: UUID, db: DbDep, current_user: UserDep
+) -> ReindexImagesResponse:
+    """Dokümanın image chunk'larını Vision ile yeniden açıklar (backfill).
+
+    Faz 3 öncesi placeholder'la indexlenmiş görseller için: her image chunk
+    Vision'dan gerçek açıklamayla güncellenir (content + embedding).
+    """
+    updated = await DocumentIngestionService(db, UUID(current_user.id)).reindex_images(document_id)
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return ReindexImagesResponse(updated=updated)
 
 
 @router.get("/{document_id}", response_model=DocumentRead)

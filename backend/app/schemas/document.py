@@ -65,3 +65,9 @@ class ParsePdfResponse(BaseModel):
     pages_parsed: int
     tables_found: int
     images_found: int
+
+
+class ReindexImagesResponse(BaseModel):
+    """reindex-images endpoint özeti: kaç image chunk güncellendi."""
+
+    updated: int

@@ -1,15 +1,21 @@
 """Doküman indexing servisi: chunk + embed + chunks tablosuna yazma."""
 
+import logging
+from pathlib import Path
 from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.config import BASE_DIR
 from app.core.llm import get_embeddings
 from app.models.document import Chunk, Document, PDFImage, PDFPage, PDFTable
 from app.services.chunking import chunk_text_hierarchical
 from app.services.pdf_parser import PDFIngestionService
+from app.services.vision import VisionService
+
+logger = logging.getLogger(__name__)
 
 
 class DocumentIngestionService:
@@ -125,16 +131,18 @@ class DocumentIngestionService:
         return len(tables)
 
     async def ingest_images(self, images: list[PDFImage]) -> int:
-        """Görsel description placeholder'larını embed eder (chunk_type="image").
+        """Görselleri Vision ile açıklar, chunk_type="image" ile embed eder.
 
-        Faz 3'te description VLM ile gerçek grafik okumasıyla doldurulacak.
+        Vision hatasında (API down, timeout, anahtar boş) placeholder
+        fallback yazılır — pipeline çökmez; reindex_images ile sonradan
+        gerçek açıklamayla doldurulabilir.
         """
         if not images:
             return 0
-        contents = [
-            f"Page {image.page.page_number} — {image.image_type}: " "[görsel açıklaması yakında]"
-            for image in images
-        ]
+        vision = VisionService()
+        contents: list[str] = []
+        for image in images:
+            contents.append(await self._describe_image_content(vision, image))
         embeddings = self.embeddings.embed_documents(contents)
         self.db.add_all(
             [
@@ -152,6 +160,70 @@ class DocumentIngestionService:
             ]
         )
         return len(images)
+
+    async def reindex_images(self, document_id: UUID) -> int | None:
+        """Dokümanın image chunk'larını Vision ile yeniden açıklar (backfill).
+
+        Placeholder'lı/eski açıklamalı image chunk'lar bulunur; her biri
+        yeniden açıklanıp content + embedding güncellenir. Doküman yoksa None.
+        """
+        doc = await self._get_owned_document(document_id)
+        if doc is None:
+            return None
+        chunks = list(
+            (
+                await self.db.scalars(
+                    select(Chunk).where(
+                        Chunk.document_id == document_id, Chunk.chunk_type == "image"
+                    )
+                )
+            ).all()
+        )
+        if not chunks:
+            return 0
+
+        ref_ids = [c.source_ref_id for c in chunks if c.source_ref_id]
+        images = {
+            img.id: img
+            for img in (
+                await self.db.scalars(
+                    select(PDFImage)
+                    .where(PDFImage.id.in_(ref_ids))
+                    .options(selectinload(PDFImage.page))
+                )
+            ).all()
+        }
+
+        vision = VisionService()
+        updated = 0
+        for chunk in chunks:
+            image = images.get(chunk.source_ref_id) if chunk.source_ref_id else None
+            if image is None:
+                continue
+            new_content = await self._describe_image_content(vision, image)
+            chunk.content = new_content
+            chunk.embedding = self.embeddings.embed_documents([new_content])[0]
+            updated += 1
+        await self.db.commit()
+        return updated
+
+    async def _describe_image_content(self, vision: VisionService, image: PDFImage) -> str:
+        """Görsel için Vision açıklamalı chunk content'i üretir (fallback'li)."""
+        image_type = image.image_type or "unknown"
+        try:
+            description = await vision.describe_image(self._resolve_image_path(image), image_type)
+        except Exception as exc:  # noqa: BLE001 (spec: tek görsel hatası akışı bozmasın)
+            logger.warning("Vision açıklaması alınamadı (%s): %s", image.id, exc)
+            description = f"[görsel açıklaması alınamadı: {exc}]"
+        return f"Page {image.page.page_number} — {image_type}: {description}"
+
+    @staticmethod
+    def _resolve_image_path(image: PDFImage) -> Path:
+        """DB'deki (portatif) görsel yolunu mutlak yola çevirir."""
+        path = Path(image.image_path or "")
+        if not path.is_absolute():
+            path = BASE_DIR / path
+        return path
 
     async def ingest_document_with_pdf(self, document_id: UUID) -> dict | None:
         """PDF'i parse edip text/table/image chunk'larını tek seferde index'ler.

@@ -7,7 +7,9 @@ yazar, arama testleri API üzerinden yapılır.
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import pytest
 from fastapi.testclient import TestClient
+from langchain_core.messages import AIMessage
 from PIL import Image as PILImage
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -141,8 +143,16 @@ async def test_ingest_tables(tmp_path: Path, db_session: AsyncSession) -> None:
     assert chunk.source_ref_id == tables[0].id
 
 
-async def test_ingest_images(tmp_path: Path, db_session: AsyncSession) -> None:
-    """Görselli PDF → image chunk (placeholder açıklamasıyla)."""
+async def test_ingest_images(
+    tmp_path: Path, db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Görselli PDF → image chunk (Faz 3: Vision açıklamasıyla)."""
+
+    class _FakeVision:
+        async def ainvoke(self, messages: list) -> AIMessage:
+            return AIMessage(content="Generic chart description.")
+
+    monkeypatch.setattr("app.services.vision.get_vision_llm", lambda: _FakeVision())
     png = _make_png(tmp_path / "fig.png", size=(400, 250))
     pdf = _build_pdf(tmp_path / "image.pdf", [RLImage(str(png), 400, 250)])
     doc = await _create_parsed_document(db_session, pdf, owner_id=uuid4())
@@ -164,7 +174,7 @@ async def test_ingest_images(tmp_path: Path, db_session: AsyncSession) -> None:
     assert added == len(chunks) == 1
     chunk = chunks[0]
     assert chunk.chunk_type == "image"
-    assert "[görsel açıklaması yakında]" in chunk.content
+    assert "Generic chart description." in chunk.content
     assert chunk.page_number == 1
 
 

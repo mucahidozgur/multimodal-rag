@@ -22,6 +22,29 @@ def get_llm() -> ChatOpenAI:
     )
 
 
+# Faz 3: Groq Vision (multimodal) modeli. langchain-groq paketi ağır bir
+# bağımlılık zinciri getirmediği için modül import'unda içe aktarılır; ancak
+# paket eksikse uygulama ayağa kalkmalı diye import fonksiyon içinde (lazy)
+# yapılır — ilk vision çağrısına kadar hata görülmez.
+_vision_llm = None
+
+
+def get_vision_llm():
+    """Groq Vision modelini tek instance olarak (lazy) döndürür."""
+    global _vision_llm
+    if _vision_llm is None:
+        from langchain_groq import ChatGroq  # lazy: paket yoksa yalnızca burada patlar
+
+        _vision_llm = ChatGroq(
+            model=settings.VISION_MODEL,
+            api_key=settings.GROQ_API_KEY,
+            max_tokens=500,
+            temperature=0,
+            request_timeout=60,
+        )
+    return _vision_llm
+
+
 class LocalEmbeddings:
     """Yerel sentence-transformers modeliyle embedding üretir."""
 

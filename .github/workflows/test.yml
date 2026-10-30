@@ -50,8 +50,12 @@ jobs:
           from sqlalchemy import text
           from sqlalchemy.ext.asyncio import create_async_engine
           async def main():
-              engine = create_async_engine('postgresql+asyncpg://multi:multi@localhost:5432/postgres')
-              async with engine.begin() as conn:
+              # CREATE DATABASE transaction içinde çalışamaz → AUTOCOMMIT gerekli.
+              engine = create_async_engine(
+                  'postgresql+asyncpg://multi:multi@localhost:5432/postgres',
+                  isolation_level='AUTOCOMMIT',
+              )
+              async with engine.connect() as conn:
                   await conn.execute(text('CREATE DATABASE multi_test OWNER multi'))
                   await conn.execute(text('GRANT ALL PRIVILEGES ON DATABASE multi_test TO multi'))
               await engine.dispose()

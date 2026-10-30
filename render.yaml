@@ -29,9 +29,9 @@ services:
         value: HS256
       - key: JWT_EXPIRE_MIN
         value: "1440"
-      # Vercel URL'i deploy sonrası aynen böyle olacak; değişirse güncellenir.
+      # Vercel production URL'i (fin-rag adı dolu olduğu için -eight eki geldi).
       - key: CORS_ORIGINS
-        value: '["http://localhost:3003","https://fin-rag.vercel.app"]'
+        value: '["http://localhost:3003","https://fin-rag-eight.vercel.app"]'
       - key: JWT_SECRET
         generateValue: true
       - key: DATABASE_URL

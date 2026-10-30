@@ -78,6 +78,7 @@ export interface Document {
   content: string;
   owner_id: string;
   source: string;
+  file_path: string | null;
   created_at: string;
   updated_at: string | null;
 }
@@ -86,6 +87,7 @@ export interface DocumentListItem {
   id: string;
   title: string;
   source: string;
+  file_path: string | null;
   created_at: string;
   content_preview: string;
 }
@@ -114,6 +116,23 @@ export interface ChatSource {
   chunk_id: string;
   chunk_index: number;
   similarity: number;
+  page_number: number | null;
+  bbox: number[] | null;
+}
+
+export interface VerificationSource {
+  chunk_id: string;
+  document_id: string | null;
+  document_title: string | null;
+  page_number: number | null;
+  bbox: number[] | null;
+}
+
+export interface VerificationData {
+  verified: boolean;
+  unsupported: string[];
+  sources: VerificationSource[];
+  faithfulness: number;
 }
 
 export interface AnalyticsStats {
@@ -167,11 +186,57 @@ export const api = {
     return apiFetch<Document>(`/api/documents/${id}`);
   },
 
+  // Faz 5: PDF viewer'ın kullandığı dosya URL'i (fetch Authorization header'ı
+  // ile birlikte react-pdf'e httpHeaders olarak verilir).
+  documentFileUrl(id: string): string {
+    return `${API_URL}/api/documents/${id}/file`;
+  },
+
   createDocument(data: { title: string; content: string }): Promise<Document> {
     return apiFetch<Document>("/api/documents", {
       method: "POST",
       body: JSON.stringify(data),
     });
+  },
+
+  // Faz 5: PDF dosyası yükle (multipart — JSON content-type uygulanmaz).
+  async uploadPdf(file: File, title?: string): Promise<Document> {
+    const token = getToken();
+    const form = new FormData();
+    form.append("file", file);
+    if (title) {
+      form.append("title", title);
+    }
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    const res = await fetch(`${API_URL}/api/documents/upload`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const body = (await res.json()) as { detail?: unknown };
+        if (typeof body.detail === "string") {
+          detail = body.detail;
+        }
+      } catch {
+        // Yanıt JSON değilse genel hata mesajı yeterli.
+      }
+      throw new ApiError(detail, res.status);
+    }
+    return (await res.json()) as Document;
+  },
+
+  indexDocument(
+    id: string
+  ): Promise<{ source_type: string; text_chunks?: number; table_chunks?: number; image_chunks?: number }> {
+    return apiFetch<
+      { source_type: string; text_chunks?: number; table_chunks?: number; image_chunks?: number }
+    >(`/api/documents/${id}/index`, { method: "POST" });
   },
 
   updateDocument(
@@ -186,13 +251,6 @@ export const api = {
 
   deleteDocument(id: string): Promise<void> {
     return apiFetch<void>(`/api/documents/${id}`, { method: "DELETE" });
-  },
-
-  indexDocument(id: string): Promise<{ chunks_created: number; chunks_deleted: number }> {
-    return apiFetch<{ chunks_created: number; chunks_deleted: number }>(
-      `/api/documents/${id}/index`,
-      { method: "POST" }
-    );
   },
 
   getAnalyticsStats(): Promise<AnalyticsStats> {

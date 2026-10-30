@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -7,6 +8,9 @@ import DocumentCard from "@/components/DocumentCard";
 import NewDocumentModal from "@/components/NewDocumentModal";
 import { api, type Document, type DocumentListItem } from "@/lib/api";
 import { useAuth } from "@/lib/store";
+
+// react-pdf tarayıcı API'lerine dayanır; SSR'da render edilmez.
+const PDFViewer = dynamic(() => import("@/components/PDFViewer"), { ssr: false });
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -16,6 +20,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [viewerId, setViewerId] = useState<string | null>(null);
 
   useEffect(() => {
     void checkAuth();
@@ -127,6 +132,7 @@ export default function DashboardPage() {
               document={doc}
               onDelete={handleDelete}
               onIndex={handleIndex}
+              onView={(id) => setViewerId(id)}
             />
           ))}
         </div>
@@ -134,6 +140,10 @@ export default function DashboardPage() {
 
       {modalOpen && (
         <NewDocumentModal onClose={() => setModalOpen(false)} onCreated={handleCreated} />
+      )}
+
+      {viewerId && (
+        <PDFViewer documentId={viewerId} initialPage={1} onClose={() => setViewerId(null)} />
       )}
 
       {toast && (

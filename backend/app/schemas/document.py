@@ -10,7 +10,8 @@ class DocumentCreate(BaseModel):
     """Yeni doküman girdisi."""
 
     title: str = Field(min_length=1, max_length=255)
-    content: str = Field(min_length=1)
+    # Faz 5: PDF dokümanlarında içerik boş olabilir (içerik parse ile gelir).
+    content: str = Field(default="", max_length=1_000_000)
     source: str = Field(default="upload", max_length=100)
     file_path: str | None = None  # Faz 1: PDF parse için disk yolu
 
@@ -44,6 +45,8 @@ class DocumentListItem(BaseModel):
     id: UUID
     title: str
     source: str
+    # Faz 5: PDF varsa "Görüntüle" butonunu açmak için gerekli.
+    file_path: str | None = None
     created_at: datetime
     content_preview: str  # ilk 200 karakter
 

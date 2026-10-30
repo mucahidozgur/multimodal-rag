@@ -97,6 +97,9 @@ def verify_citations(answer: str, sources: list[dict]) -> dict:
     valid_ids = {str(source.get("chunk_id")) for source in sources}
     source_meta = {
         str(source.get("chunk_id")): {
+            # Faz 5: frontend citation → PDF viewer için doküman kimliği de gerekli.
+            "document_id": source.get("document_id"),
+            "document_title": source.get("document_title"),
             "page_number": source.get("page_number"),
             "bbox": source.get("bbox"),
         }

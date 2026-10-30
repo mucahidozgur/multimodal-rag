@@ -1,12 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import DocumentSelector from "@/components/DocumentSelector";
-import MessageBubble, { type Message } from "@/components/MessageBubble";
-import { api, type DocumentListItem } from "@/lib/api";
+import MessageBubble, { type CitationTarget, type Message } from "@/components/MessageBubble";
+import { api, type DocumentListItem, type VerificationData } from "@/lib/api";
 import { streamSSE } from "@/lib/sse";
 import { uuid } from "@/lib/uuid";
+
+// react-pdf tarayıcı API'lerine dayanır; SSR'da render edilmez.
+const PDFViewer = dynamic(() => import("@/components/PDFViewer"), { ssr: false });
 
 const EXAMPLE_QUESTIONS = ["Python nedir?", "Toplantı notlarını özetle", "Yapılacakları çıkar"];
 
@@ -17,6 +21,7 @@ export default function AssistantPage() {
   const [mode, setMode] = useState<"chat" | "agent">("chat");
   const [documents, setDocuments] = useState<DocumentListItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [viewer, setViewer] = useState<CitationTarget | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -60,6 +65,9 @@ export default function AssistantPage() {
           updateMessage(assistantId, { intent: data.intent });
         } else if (ev.event === "sources") {
           updateMessage(assistantId, { sources: data });
+        } else if (ev.event === "verification") {
+          // Faz 5: citation doğrulaması (sources + page + bbox) → tıklanabilir.
+          updateMessage(assistantId, { verification: data as VerificationData });
         } else if (ev.event === "token") {
           // content'e ekle
           setMessages((prev) =>
@@ -134,7 +142,13 @@ export default function AssistantPage() {
               </div>
             </div>
           ) : (
-            messages.map((message) => <MessageBubble key={message.id} message={message} />)
+            messages.map((message) => (
+              <MessageBubble
+                key={message.id}
+                message={message}
+                onCitationClick={(citation) => setViewer(citation)}
+              />
+            ))
           )}
           <div ref={bottomRef} />
         </div>
@@ -174,6 +188,15 @@ export default function AssistantPage() {
           {streaming && <p className="mt-2 text-sm text-gray-500">Yanıt yazıyor...</p>}
         </div>
       </div>
+
+      {viewer && (
+        <PDFViewer
+          documentId={viewer.documentId}
+          initialPage={viewer.pageNumber}
+          bbox={viewer.bbox}
+          onClose={() => setViewer(null)}
+        />
+      )}
 
       <p className="mt-2 text-xs text-gray-400">
         Chat: dokümanlarınız hakkında soru sorun. Agent: özet/aksiyon/karşılaştırma da yapabilir.

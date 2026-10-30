@@ -43,10 +43,22 @@ def test_verify_citations_all_supported(monkeypatch: pytest.MonkeyPatch) -> None
     result = verify_citations("Paketler indirilir. Port 443 açık.", SOURCES)
     assert result["verified"] is True
     assert [s["supported_by"] for s in result["sentences"]] == ["chunk-a", "chunk-b"]
-    # Faz 4: kaynak metadata'sı (sayfa + bbox) döner.
+    # Faz 4/5: kaynak metadata'sı (doküman + sayfa + bbox) döner.
     assert result["sources"] == [
-        {"chunk_id": "chunk-a", "page_number": 1, "bbox": [0.0, 0.0, 300.0, 100.0]},
-        {"chunk_id": "chunk-b", "page_number": 2, "bbox": [0.0, 200.0, 300.0, 300.0]},
+        {
+            "chunk_id": "chunk-a",
+            "document_id": None,
+            "document_title": None,
+            "page_number": 1,
+            "bbox": [0.0, 0.0, 300.0, 100.0],
+        },
+        {
+            "chunk_id": "chunk-b",
+            "document_id": None,
+            "document_title": None,
+            "page_number": 2,
+            "bbox": [0.0, 200.0, 300.0, 300.0],
+        },
     ]
     assert result["sentences"][0]["page_number"] == 1
     assert result["sentences"][0]["bbox"] == [0.0, 0.0, 300.0, 100.0]

@@ -163,7 +163,13 @@ def test_citation_includes_page_and_bbox(monkeypatch: pytest.MonkeyPatch) -> Non
     result = verify_citations("Revenue reached 1.8M in Q3 2026.", sources)
     assert result["verified"] is True
     assert result["sources"] == [
-        {"chunk_id": "chunk-t", "page_number": 3, "bbox": [100.0, 200.0, 400.0, 260.0]}
+        {
+            "chunk_id": "chunk-t",
+            "document_id": None,
+            "document_title": None,
+            "page_number": 3,
+            "bbox": [100.0, 200.0, 400.0, 260.0],
+        }
     ]
     assert result["sentences"][0]["page_number"] == 3
     assert result["sentences"][0]["bbox"] == [100.0, 200.0, 400.0, 260.0]

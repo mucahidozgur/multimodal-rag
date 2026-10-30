@@ -14,6 +14,9 @@ out/
 *.tsbuildinfo
 next-env.d.ts
 
+# PDF.js worker (frontend prebuild script'i node_modules'ten kopyalar)
+frontend/public/pdf.worker.min.mjs
+
 # Env & secrets
 .env
 .env.local

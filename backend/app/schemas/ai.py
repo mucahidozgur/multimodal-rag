@@ -7,11 +7,19 @@ from pydantic import BaseModel, Field
 
 
 class IndexResponse(BaseModel):
-    """Index'leme sonucu."""
+    """Index'leme sonucu.
+
+    source_type="text" (geri uyumlu) ise chunks_created/chunks_deleted dolu;
+    source_type="pdf" (Faz 5) ise text/table/image_chunks sayaçları dolu.
+    """
 
     document_id: UUID
-    chunks_created: int
-    chunks_deleted: int
+    source_type: Literal["text", "pdf"]
+    chunks_created: int | None = None
+    chunks_deleted: int | None = None
+    text_chunks: int | None = None
+    table_chunks: int | None = None
+    image_chunks: int | None = None
 
 
 class SearchRequest(BaseModel):
@@ -87,6 +95,9 @@ class ChatSource(BaseModel):
     chunk_id: UUID
     chunk_index: int
     similarity: float
+    # Faz 5: citation → PDF viewer (sayfa + bbox highlight); eski chunk'larda None.
+    page_number: int | None = None
+    bbox: list[float] | None = None
 
 
 class ChatTokenEvent(BaseModel):

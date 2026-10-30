@@ -6,8 +6,9 @@ services:
   - type: web
     name: fin-rag-api
     runtime: docker
+    # Render blueprint: her iki yol da repo köküne görelidir.
     dockerContext: ./backend
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./backend/Dockerfile
     plan: free
     healthCheckPath: /health
     envVars:

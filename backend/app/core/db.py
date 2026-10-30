@@ -29,9 +29,17 @@ async def get_db() -> AsyncIterator[AsyncSession]:
 
 
 async def init_db() -> None:
-    """pgvector uzantısını hazırlar; DB erişilemezse uyarı basar ve geçer."""
+    """pgvector uzantısını hazırlar; tabloları create_all ile oluşturur.
+
+    Bulut dağıtımında (Neon/Render) alembic migration koşulmadığı için
+    self-bootstrap (idempotent); yerelde mevcut tablolar için no-op'tur.
+    DB erişilemezse uyarı basar ve geçer (health endpoint'i ayakta kalır).
+    """
     try:
+        import app.models  # noqa: F401  (tabloları Base.metadata'ya kaydeder)
+
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            await conn.run_sync(Base.metadata.create_all)
     except Exception as e:  # noqa: BLE001 (spec: DB erişilemezse sessizce geç)
         logger.warning(f"DB init skipped: {e}")

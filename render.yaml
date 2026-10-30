@@ -1,0 +1,44 @@
+# Render Blueprint: backend'i Docker ile free instance'a deploy eder.
+# Dashboard: New → Blueprint → multimodal-rag reposu → Apply.
+# Sırlar (DATABASE_URL, GROQ_API_KEY, CLOUDFLARE_*) apply sırasında
+# dashboard'da elle girilir — git'e ASLA yazılmaz (sync: false).
+services:
+  - type: web
+    name: fin-rag-api
+    runtime: docker
+    dockerContext: ./backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: EMBEDDING_PROVIDER
+        value: cloudflare
+      - key: EMBEDDING_MODEL
+        value: BAAI/bge-small-en-v1.5
+      - key: CLOUDFLARE_EMBEDDING_MODEL
+        value: "@cf/baai/bge-small-en-v1.5"
+      - key: EMBEDDING_DIM
+        value: "384"
+      - key: LLM_MODEL
+        value: qwen/qwen3.8-27b
+      - key: VISION_MODEL
+        value: meta-llama/llama-4-scout-17b-16e-instruct
+      - key: GROQ_BASE_URL
+        value: https://api.groq.com/openai/v1
+      - key: JWT_ALG
+        value: HS256
+      - key: JWT_EXPIRE_MIN
+        value: "1440"
+      # Vercel URL'i deploy sonrası aynen böyle olacak; değişirse güncellenir.
+      - key: CORS_ORIGINS
+        value: '["http://localhost:3003","https://fin-rag.vercel.app"]'
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CLOUDFLARE_ACCOUNT_ID
+        sync: false
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false

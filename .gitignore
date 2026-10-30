@@ -20,6 +20,7 @@ frontend/public/pdf.worker.min.mjs
 # Env & secrets
 .env
 .env.local
+.env.render-secrets
 
 # Claude Code local planlar
 .claude/

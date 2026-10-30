@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     EMBEDDING_DIM: int = 384
+    # Faz 7: embedding sağlayıcı ("local" sentence-transformers | "cloudflare"
+    # Workers AI). Render free tier (512MB) için cloudflare — model RAM'e yüklenmez.
+    EMBEDDING_PROVIDER: str = "local"
+    CLOUDFLARE_ACCOUNT_ID: str = ""  # EMBEDDING_PROVIDER=cloudflare için zorunlu
+    CLOUDFLARE_API_TOKEN: str = ""  # Workers AI token'ı (ücretsiz katman)
+    CLOUDFLARE_EMBEDDING_MODEL: str = "@cf/baai/bge-small-en-v1.5"
     RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
     JWT_SECRET: str = "changeme"
     JWT_ALG: str = "HS256"

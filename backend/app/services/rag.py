@@ -112,6 +112,7 @@ class RAGService:
                 "heading": chunk.heading,
                 "chunk_type": chunk.chunk_type,
                 "page_number": chunk.page_number,
+                "bbox": chunk.bbox,
             }
             for chunk, title, sim in rows
         ]
@@ -153,6 +154,7 @@ class RAGService:
                 "heading": chunk.heading,
                 "chunk_type": chunk.chunk_type,
                 "page_number": chunk.page_number,
+                "bbox": chunk.bbox,
             }
             for chunk, title, rank_val in rows
         ]
@@ -278,6 +280,7 @@ class RAGService:
                 "heading": chunk.heading,
                 "chunk_type": chunk.chunk_type,
                 "page_number": chunk.page_number,
+                "bbox": chunk.bbox,
             }
             for chunk, title in rows
         ]
@@ -310,6 +313,7 @@ class RAGService:
                 "heading": chunk.heading,
                 "chunk_type": chunk.chunk_type,
                 "page_number": chunk.page_number,
+                "bbox": chunk.bbox,
             }
             for chunk, title in rows
         ]

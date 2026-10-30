@@ -92,6 +92,7 @@ class DocumentIngestionService:
                         chunk_type="text",
                         source_ref_id=page.id,
                         page_number=page.page_number,
+                        bbox=page.bbox,
                     )
                     for i, (piece, embedding) in enumerate(zip(pieces, embeddings, strict=True))
                 ]
@@ -124,6 +125,7 @@ class DocumentIngestionService:
                     chunk_type="table",
                     source_ref_id=table.id,
                     page_number=table.page.page_number,
+                    bbox=table.bbox,
                 )
                 for table, content, embedding in zip(tables, contents, embeddings, strict=True)
             ]
@@ -155,6 +157,7 @@ class DocumentIngestionService:
                     chunk_type="image",
                     source_ref_id=image.id,
                     page_number=image.page.page_number,
+                    bbox=image.bbox,
                 )
                 for image, content, embedding in zip(images, contents, embeddings, strict=True)
             ]

@@ -57,6 +57,8 @@ class SearchResultItem(BaseModel):
     chunk_type: str | None = None
     # Faz 2: citation için PDF sayfa numarası; eski chunk'larda None.
     page_number: int | None = None
+    # Faz 4: kaynağın sayfa üzerindeki konumu [x0, top, x1, bottom] (highlight).
+    bbox: list[float] | None = None
 
 
 class SearchResponse(BaseModel):

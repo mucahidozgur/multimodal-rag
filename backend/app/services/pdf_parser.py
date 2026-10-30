@@ -51,16 +51,27 @@ def classify_image(width: int, height: int) -> str:
     return "figure"
 
 
-def _extract_tables(page: pdfplumber.page.Page) -> list[list[list[str | None]]]:
-    """Sayfadaki tabloları çıkarır (pdfplumber varsayılan "lines" stratejisi).
+def _extract_tables(page: pdfplumber.page.Page) -> list[dict]:
+    """Sayfadaki tabloları bbox'larıyla çıkarır (pdfplumber "lines" stratejisi).
 
-    Faz 1 kapsamında çizgi çizilmiş tablolar hedeftir (10-K'lardaki gibi;
-    reportlab GRID de çizgi üretir). Tüm hücreleri boş olan sahte tablolar
-    elenir. Kenarlıksız tablolar gerekirse Faz 2'de camelot (stream) ile
-    ele alınacak.
+    Her tablo {"data", "bbox", "markdown"} döner; bbox [x0, top, x1, bottom]
+    (PDF nokta birimi) — Faz 4 citation highlight'ı bunu kullanır. Tüm
+    hücreleri boş olan sahte tablolar elenir. Kenarlıksız tablolar gerekirse
+    Faz 2'de olduğu gibi camelot (stream) ile ele alınacak.
     """
-    tables = page.extract_tables()
-    return [t for t in tables if any(cell for row in t for cell in row if cell)]
+    tables: list[dict] = []
+    for table in page.find_tables():
+        data = table.extract()
+        if not any(cell for row in data for cell in row if cell):
+            continue
+        tables.append(
+            {
+                "data": data,
+                "bbox": list(table.bbox),
+                "markdown": table_to_markdown(data),
+            }
+        )
+    return tables
 
 
 class PDFParser:
@@ -82,9 +93,10 @@ class PDFParser:
                     {
                         "page_number": 1,
                         "text": "...",
-                        "tables": [{"data": [[...]], "markdown": "..."}],
+                        "bbox": [x0, top, x1, bottom],
+                        "tables": [{"data": [[...]], "bbox": [...], "markdown": "..."}],
                         "images": [{"path": "storage/images/...", "type": "...",
-                                    "width": ..., "height": ...}],
+                                    "width": ..., "height": ..., "bbox": [...]}],
                     }
                 ]
             }
@@ -105,10 +117,9 @@ class PDFParser:
                         {
                             "page_number": i,
                             "text": page.extract_text() or "",
-                            "tables": [
-                                {"data": t, "markdown": table_to_markdown(t)}
-                                for t in _extract_tables(page)
-                            ],
+                            # Tüm sayfa boyutu: [x0, top, x1, bottom].
+                            "bbox": list(page.bbox),
+                            "tables": _extract_tables(page),
                             "images": self._extract_page_images(fitz_doc, i - 1),
                         }
                     )
@@ -120,13 +131,17 @@ class PDFParser:
         """Sayfadaki gömülü görselleri diske yazar, meta bilgileri döndürür."""
         images: list[dict] = []
         page = doc[page_index]
-        for xref, *_ in page.get_images(full=True):
+        for item in page.get_images(full=True):
+            xref = item[0]
             info = doc.extract_image(xref)
             if not info:
                 continue
             ext = info.get("ext") or "png"
             width = int(info.get("width") or 0)
             height = int(info.get("height") or 0)
+            # Görselin sayfa üzerindeki konumu (Faz 4: citation highlight).
+            rect = page.get_image_bbox(item)
+            bbox = [rect.x0, rect.y0, rect.x1, rect.y1] if rect else None
             filename = f"{uuid.uuid4().hex}.{ext}"
             self.images_dir.mkdir(parents=True, exist_ok=True)
             (self.images_dir / filename).write_bytes(info["image"])
@@ -142,6 +157,7 @@ class PDFParser:
                     "type": classify_image(width, height),
                     "width": width,
                     "height": height,
+                    "bbox": bbox,
                 }
             )
         return images
@@ -172,6 +188,7 @@ class PDFIngestionService:
                 document_id=document.id,
                 page_number=page["page_number"],
                 raw_text=page["text"],
+                bbox=page.get("bbox"),
             )
             self.db.add(page_row)
             await self.db.flush()  # tablo/görsel satırları için page id gerekli
@@ -183,6 +200,7 @@ class PDFIngestionService:
                         table_index=i,
                         data_json=table["data"],
                         markdown_content=table["markdown"],
+                        bbox=table.get("bbox"),
                     )
                 )
             for i, image in enumerate(page["images"]):
@@ -195,6 +213,7 @@ class PDFIngestionService:
                         image_type=image["type"],
                         width=image["width"],
                         height=image["height"],
+                        bbox=image.get("bbox"),
                     )
                 )
         await self.db.commit()

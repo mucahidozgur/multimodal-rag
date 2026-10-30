@@ -8,8 +8,18 @@ from app.services.rag import has_sufficient_context
 from app.services.verification import detect_hallucination, verify_citations
 
 SOURCES = [
-    {"chunk_id": "chunk-a", "content": "Kurulum paketleri indirilir."},
-    {"chunk_id": "chunk-b", "content": "Port 443 açık olmalıdır."},
+    {
+        "chunk_id": "chunk-a",
+        "content": "Kurulum paketleri indirilir.",
+        "page_number": 1,
+        "bbox": [0.0, 0.0, 300.0, 100.0],
+    },
+    {
+        "chunk_id": "chunk-b",
+        "content": "Port 443 açık olmalıdır.",
+        "page_number": 2,
+        "bbox": [0.0, 200.0, 300.0, 300.0],
+    },
 ]
 
 
@@ -32,18 +42,26 @@ def test_verify_citations_all_supported(monkeypatch: pytest.MonkeyPatch) -> None
 
     result = verify_citations("Paketler indirilir. Port 443 açık.", SOURCES)
     assert result["verified"] is True
-    assert result["unsupported_sentences"] == []
     assert [s["supported_by"] for s in result["sentences"]] == ["chunk-a", "chunk-b"]
+    # Faz 4: kaynak metadata'sı (sayfa + bbox) döner.
+    assert result["sources"] == [
+        {"chunk_id": "chunk-a", "page_number": 1, "bbox": [0.0, 0.0, 300.0, 100.0]},
+        {"chunk_id": "chunk-b", "page_number": 2, "bbox": [0.0, 200.0, 300.0, 300.0]},
+    ]
+    assert result["sentences"][0]["page_number"] == 1
+    assert result["sentences"][0]["bbox"] == [0.0, 0.0, 300.0, 100.0]
 
 
 def test_verify_citations_some_unsupported(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Bir cümle NONE dönünce verified=False ve cümle listelenir."""
+    """Bir cümle NONE dönünce verified=False; cümle NONE işaretlenir."""
     fake = _FakeLLM('{"results": {"0": "chunk-a", "1": "NONE"}}')
     monkeypatch.setattr("app.services.verification.get_llm", lambda: fake)
 
     result = verify_citations("Paketler indirilir. Ay'da tavşan var.", SOURCES)
     assert result["verified"] is False
-    assert result["unsupported_sentences"] == ["Ay'da tavşan var."]
+    assert result["sentences"][1]["supported_by"] == "NONE"
+    assert result["sentences"][1]["page_number"] is None
+    assert "unsupported_sentences" not in result  # Faz 4: yerine sources döner
 
 
 def test_verify_citations_unknown_id_treated_unsupported(

@@ -178,7 +178,11 @@ class ChatService:
                 "event": "verification",
                 "data": {
                     "verified": citation["verified"],
-                    "unsupported": citation["unsupported_sentences"],
+                    "unsupported": [
+                        s["text"] for s in citation["sentences"] if s["supported_by"] == "NONE"
+                    ],
+                    # Faz 4: kaynak metadata'sı (sayfa + bbox) frontend highlight için.
+                    "sources": citation["sources"],
                     "faithfulness": hallucination["faithfulness"],
                 },
             }
@@ -186,7 +190,12 @@ class ChatService:
             logger.exception("Verification error (query=%s)", query[:100])
             return {
                 "event": "verification",
-                "data": {"verified": False, "unsupported": [], "faithfulness": 0.0},
+                "data": {
+                    "verified": False,
+                    "unsupported": [],
+                    "sources": [],
+                    "faithfulness": 0.0,
+                },
             }
 
 

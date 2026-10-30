@@ -182,11 +182,11 @@ def test_chat_verification_event_payload(
     fake_llm: FakeListChatModel,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """verification event'i verified/unsupported/faithfulness alanlarını taşır."""
+    """verification event'i verified/unsupported/sources/faithfulness taşır."""
     _create_and_index(app_client, auth_headers, "Python Programlama", PYTHON_TEXT)
     monkeypatch.setattr(
         "app.services.chat.verify_citations",
-        lambda answer, sources: {"verified": True, "unsupported_sentences": []},
+        lambda answer, sources: {"verified": True, "sentences": [], "sources": []},
     )
     monkeypatch.setattr(
         "app.services.chat.detect_hallucination",
@@ -197,7 +197,7 @@ def test_chat_verification_event_payload(
     names = [name for name, _ in events]
     assert "verification" in names
     data = events[names.index("verification")][1]
-    assert data == {"verified": True, "unsupported": [], "faithfulness": 0.95}
+    assert data == {"verified": True, "unsupported": [], "sources": [], "faithfulness": 0.95}
 
 
 def test_chat_verify_false_skips_verification(

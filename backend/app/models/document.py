@@ -57,6 +57,8 @@ class Chunk(Base):
     chunk_type: Mapped[str] = mapped_column(String(20), nullable=False, default="text", index=True)
     source_ref_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Faz 4: chunk kaynağının sayfa üzerindeki konumu [x0, top, x1, bottom].
+    bbox: Mapped[list | None] = mapped_column(JSON, nullable=True)
     # FTS (BM25) araması için generated column: content her yazıldığında DB
     # tarafında to_tsvector('simple', content) ile otomatik güncellenir.
     tsv_content: Mapped[str | None] = mapped_column(
@@ -80,6 +82,8 @@ class PDFPage(Base):
     )
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     raw_text: Mapped[str | None] = mapped_column(Text)  # Çıkarılan ham metin
+    # Faz 4: sayfanın tam boyutu [x0, top, x1, bottom] (PDF nokta birimi).
+    bbox: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     document: Mapped["Document"] = relationship("Document", back_populates="pages")
     tables: Mapped[list["PDFTable"]] = relationship(
@@ -102,6 +106,8 @@ class PDFTable(Base):
     table_index: Mapped[int | None] = mapped_column(Integer)  # Sayfadaki kaçıncı tablo
     data_json: Mapped[list | None] = mapped_column(JSON)  # [[cell1, cell2], [cell3, cell4]]
     markdown_content: Mapped[str | None] = mapped_column(Text)  # Tablo markdown olarak
+    # Faz 4: tablonun sayfa üzerindeki konumu [x0, top, x1, bottom].
+    bbox: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     page: Mapped["PDFPage"] = relationship("PDFPage", back_populates="tables")
 
@@ -120,5 +126,7 @@ class PDFImage(Base):
     image_type: Mapped[str | None] = mapped_column(String)  # "chart", "figure", "logo", "unknown"
     width: Mapped[int | None] = mapped_column(Integer)
     height: Mapped[int | None] = mapped_column(Integer)
+    # Faz 4: görselin sayfa üzerindeki konumu [x0, top, x1, bottom].
+    bbox: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     page: Mapped["PDFPage"] = relationship("PDFPage", back_populates="images")

@@ -69,12 +69,14 @@ def verify_citations(answer: str, sources: list[dict]) -> dict:
 
     Her cümle için LLM, destekleyen kaynağın chunk_id'sini (veya "NONE") döner.
     Kaynak listesinde olmayan chunk_id'ler NONE sayılır (LLM'in uydurduğu
-    citation kabul edilmez). Dönüş: {"sentences", "verified",
-    "unsupported_sentences"}.
+    citation kabul edilmez). Dönüş: {"sentences", "verified", "sources"} —
+    sentences elemanları {"text", "supported_by", "page_number", "bbox"}
+    taşır; sources ise kaynak metadata'sını (chunk_id + sayfa + konum) döner
+    (Faz 4: citation'lar tam sayfaya ve koordinata işaret eder).
     """
     sentences = _split_sentences(answer)
     if not sentences:
-        return {"sentences": [], "verified": True, "unsupported_sentences": []}
+        return {"sentences": [], "verified": True, "sources": []}
 
     prompt = (
         "Aşağıdaki her cümle için, o cümleyi destekleyen kaynağın chunk_id'sini dön; "
@@ -92,7 +94,14 @@ def verify_citations(answer: str, sources: list[dict]) -> dict:
         # LLM çıktısının formatı (çağıranın argüman tipi değil) → ValueError.
         raise ValueError("LLM çıktısında 'results' nesnesi yok")  # noqa: TRY004
 
-    valid_ids = {source.get("chunk_id") for source in sources}
+    valid_ids = {str(source.get("chunk_id")) for source in sources}
+    source_meta = {
+        str(source.get("chunk_id")): {
+            "page_number": source.get("page_number"),
+            "bbox": source.get("bbox"),
+        }
+        for source in sources
+    }
     supported: list[dict] = []
     unsupported: list[str] = []
     for index, sentence in enumerate(sentences):
@@ -100,13 +109,21 @@ def verify_citations(answer: str, sources: list[dict]) -> dict:
         if chunk_id == "NONE" or chunk_id not in valid_ids:
             unsupported.append(sentence)
             chunk_id = "NONE"
-        supported.append({"text": sentence, "supported_by": chunk_id})
+        meta = source_meta.get(chunk_id, {})
+        supported.append(
+            {
+                "text": sentence,
+                "supported_by": chunk_id,
+                "page_number": meta.get("page_number"),
+                "bbox": meta.get("bbox"),
+            }
+        )
 
     update_observation_output({"verified": not unsupported, "unsupported_count": len(unsupported)})
     return {
         "sentences": supported,
         "verified": not unsupported,
-        "unsupported_sentences": unsupported,
+        "sources": [{"chunk_id": chunk_id, **meta} for chunk_id, meta in source_meta.items()],
     }
 
 

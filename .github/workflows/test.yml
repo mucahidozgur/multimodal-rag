@@ -1,0 +1,107 @@
+name: test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: multi
+          POSTGRES_PASSWORD: multi
+          POSTGRES_DB: multi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U multi"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+
+      # Faz 1/3 sistem bağımlılıkları: pdfplumber/camelot (ghostscript, poppler),
+      # opencv-python-headless (libgl1, libglib2.0-0) — PyMuPDF wheel'le gelir.
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ghostscript poppler-utils libgl1 libglib2.0-0
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -e ".[dev]"
+
+      - name: Create test database
+        working-directory: backend
+        run: |
+          python -c "
+          import asyncio
+          from sqlalchemy import text
+          from sqlalchemy.ext.asyncio import create_async_engine
+          async def main():
+              engine = create_async_engine('postgresql+asyncpg://multi:multi@localhost:5432/postgres')
+              async with engine.begin() as conn:
+                  await conn.execute(text('CREATE DATABASE multi_test OWNER multi'))
+                  await conn.execute(text('GRANT ALL PRIVILEGES ON DATABASE multi_test TO multi'))
+              await engine.dispose()
+          asyncio.run(main())
+          "
+
+      # conftest HF_HUB_OFFLINE=1 ile çalışır; embedding modelini önceden indir.
+      - name: Pre-download embedding model
+        working-directory: backend
+        run: python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
+
+      - name: Write test .env
+        working-directory: backend
+        run: |
+          cat > ../.env <<'EOF'
+          DATABASE_URL=postgresql+asyncpg://multi:multi@localhost:5432/multi
+          TEST_DATABASE_URL=postgresql+asyncpg://multi:multi@localhost:5432/multi_test
+          GROQ_API_KEY=
+          LLM_MODEL=qwen/qwen3.8-27b
+          VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+          EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+          EMBEDDING_DIM=384
+          JWT_SECRET=ci-secret
+          CORS_ORIGINS=["http://localhost:3003"]
+          EOF
+
+      - name: Run tests
+        working-directory: backend
+        run: pytest -v
+
+      - name: Lint
+        working-directory: backend
+        run: |
+          black --check .
+          ruff check .
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # npm run build tetiklemeden önce prebuild, pdfjs worker'ını public/'e kopyalar.
+      - name: Install and build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build

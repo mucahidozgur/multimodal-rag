@@ -24,7 +24,7 @@ from reportlab.platypus import (
     TableStyle,
 )
 
-from app.services.pdf_parser import PDFParser, classify_image
+from app.services.pdf_parser import PDFParser, classify_image, sanitize_text
 
 DOCS_URL = "/api/documents"
 
@@ -109,6 +109,13 @@ def test_classify_image_heuristic() -> None:
     assert classify_image(500, 300) == "chart"
     assert classify_image(50, 50) == "logo"
     assert classify_image(200, 150) == "figure"
+
+
+def test_sanitize_text_strips_control_chars() -> None:
+    """NUL ve C0 kontrol karakterleri ayıklanır (PostgreSQL UTF-8 kabul etmez)."""
+    assert sanitize_text("a\x00b\x01c\x1fd") == "abcd"
+    assert sanitize_text("satır\nbaşı\tkalır") == "satır\nbaşı\tkalır"
+    assert sanitize_text("temiz metin") == "temiz metin"
 
 
 def test_parse_pdf_api(

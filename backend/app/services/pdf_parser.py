@@ -5,6 +5,7 @@ multi-modal indexleme bu çıktının üzerine kurulacak.
 """
 
 import asyncio
+import re
 import uuid
 from pathlib import Path
 
@@ -20,6 +21,15 @@ from app.models.document import Document, PDFImage, PDFPage, PDFTable
 CHART_MIN_WIDTH = 300
 CHART_MIN_HEIGHT = 150
 LOGO_MAX_SIZE = 100
+
+# PostgreSQL TEXT, NUL (0x00) ve çoğu C0 kontrol karakterini reddeder; bazı
+# PDF fontları/encoding'leri metne bunları sızdırabilir.
+_CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
+def sanitize_text(text: str) -> str:
+    """PDF metninden DB'nin kabul etmediği kontrol karakterlerini ayıklar."""
+    return _CONTROL_CHARS_RE.sub("", text)
 
 
 def table_to_markdown(table: list[list[str | None]]) -> str:
@@ -61,7 +71,7 @@ def _extract_tables(page: pdfplumber.page.Page) -> list[dict]:
     """
     tables: list[dict] = []
     for table in page.find_tables():
-        data = table.extract()
+        data = [[sanitize_text(cell) if cell else cell for cell in row] for row in table.extract()]
         if not any(cell for row in data for cell in row if cell):
             continue
         tables.append(
@@ -116,7 +126,7 @@ class PDFParser:
                     pages.append(
                         {
                             "page_number": i,
-                            "text": page.extract_text() or "",
+                            "text": sanitize_text(page.extract_text() or ""),
                             # Tüm sayfa boyutu: [x0, top, x1, bottom].
                             "bbox": list(page.bbox),
                             "tables": _extract_tables(page),

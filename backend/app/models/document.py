@@ -4,7 +4,17 @@ import uuid
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, Computed, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import (
+    JSON,
+    Computed,
+    DateTime,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    func,
+)
 from sqlalchemy.dialects.postgresql import TSVECTOR, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +34,9 @@ class Document(Base):
     source: Mapped[str] = mapped_column(String(100), default="upload")
     # Faz 1: PDF dosyasının disk üzerindeki yolu (parse-pdf endpoint'i buradan okur).
     file_path: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Faz 7: PDF baytlarının DB kopyası (Render free tier geçici diski silince
+    # dosya buradan geri yüklenir).
+    file_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), onupdate=func.now(), nullable=True

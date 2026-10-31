@@ -14,7 +14,7 @@ import pymupdf
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import get_settings
+from app.core.config import BASE_DIR, get_settings
 from app.models.document import Document, PDFImage, PDFPage, PDFTable
 
 # Boyut bazlı görsel tipi eşikleri (Faz 3'te VLM ile değiştirilecek).
@@ -194,7 +194,16 @@ class PDFIngestionService:
         """
         if not document.file_path:
             raise ValueError("Document has no file_path")
-        result = await self.parser.parse_pdf(document.file_path)
+        path = Path(document.file_path)
+        if not path.is_absolute():
+            path = BASE_DIR / path
+        # Faz 7: Render free tier geçici diski silmişse DB kopyasından geri yaz
+        # (parse idempotent olduğu için her index'te sorunsuz çalışır).
+        if not path.is_file() and document.file_data:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(document.file_data)
+            document.file_path = str(path)
+        result = await self.parser.parse_pdf(str(path))
 
         await self.db.execute(delete(PDFPage).where(PDFPage.document_id == document.id))
         tables_found = 0

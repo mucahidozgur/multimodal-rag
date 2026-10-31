@@ -10,8 +10,12 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.models.document import Document, PDFPage
+from app.services.pdf_parser import PDFIngestionService
 
 DOCS_URL = "/api/documents"
 
@@ -112,6 +116,55 @@ def test_upload_endpoint(
         files={"file": ("x.pdf", b"%PDF", "application/pdf")},
     )
     assert anon.status_code in (401, 403)
+
+
+def test_uploaded_pdf_served_from_db_after_disk_loss(
+    app_client: TestClient,
+    auth_headers: dict[str, str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Upload: baytlar DB'ye de yazılır; disk silinse bile /file DB'den servis eder."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "STORAGE_DIR", str(tmp_path / "storage"))
+
+    pdf = _make_pdf(tmp_path / "fin.pdf")
+    resp = app_client.post(
+        f"{DOCS_URL}/upload",
+        files={"file": ("fin.pdf", pdf.read_bytes(), "application/pdf")},
+        headers=auth_headers,
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    stored = Path(body["file_path"])
+    assert stored.is_file()
+    stored.unlink()  # Render restart senaryosu: geçici disk silindi
+
+    served = app_client.get(f"{DOCS_URL}/{body['id']}/file", headers=auth_headers)
+    assert served.status_code == 200
+    assert served.headers["content-type"] == "application/pdf"
+    assert served.content == pdf.read_bytes()
+
+
+async def test_parse_restores_pdf_from_db(tmp_path: Path, db_session: AsyncSession) -> None:
+    """Diskteki PDF kayıpsa parse, DB kopyasından dosyayı geri yazar."""
+    pdf = _make_pdf(tmp_path / "src.pdf")
+    data = pdf.read_bytes()
+    target = tmp_path / "restored" / "doc.pdf"  # var olmayan hedef yol
+    doc = Document(
+        title="restore-test", content="", owner_id=uuid4(), file_path=str(target), file_data=data
+    )
+    db_session.add(doc)
+    await db_session.commit()
+    await db_session.refresh(doc)
+
+    await PDFIngestionService(db_session).parse_document(doc)
+
+    assert target.is_file() and target.read_bytes() == data
+    pages = list(
+        (await db_session.scalars(select(PDFPage).where(PDFPage.document_id == doc.id))).all()
+    )
+    assert len(pages) >= 1
 
 
 def test_index_endpoint_pdf_vs_text(

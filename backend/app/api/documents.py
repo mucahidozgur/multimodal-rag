@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,11 +61,14 @@ async def upload_document_pdf(
     pdfs_dir = Path(get_settings().STORAGE_DIR) / "pdfs"
     pdfs_dir.mkdir(parents=True, exist_ok=True)
     stored = pdfs_dir / f"{uuid4().hex}.pdf"
-    stored.write_bytes(await file.read())
+    content = await file.read()
+    stored.write_bytes(content)
 
     doc_title = (title or Path(filename).stem or "document.pdf").strip()
     doc = await DocumentService(db, UUID(current_user.id)).create(
-        DocumentCreate(title=doc_title, content="", file_path=str(stored))
+        # Faz 7: baytlar DB'ye de yazılır (Render free tier diski silse bile
+        # dosya Neon'dan geri yüklenebilir).
+        DocumentCreate(title=doc_title, content="", file_path=str(stored), file_data=content)
     )
     return doc
 
@@ -87,6 +90,12 @@ async def get_document_file(document_id: UUID, db: DbDep, current_user: UserDep)
     if not path.is_absolute():
         path = BASE_DIR / path
     if not path.is_file():
+        # Faz 7: geçici disk silinmişse DB kopyasından servis et.
+        if doc.file_data:
+            return Response(
+                content=doc.file_data,
+                media_type="application/pdf",
+            )
         raise HTTPException(status_code=404, detail="PDF file not found")
     return FileResponse(path, media_type="application/pdf", filename=f"{doc.title}.pdf")
 

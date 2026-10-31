@@ -14,6 +14,9 @@ class DocumentCreate(BaseModel):
     content: str = Field(default="", max_length=1_000_000)
     source: str = Field(default="upload", max_length=100)
     file_path: str | None = None  # Faz 1: PDF parse için disk yolu
+    # Faz 7: PDF baytlarının DB kopyası (DocumentRead/ListItem'te tanımsız —
+    # API yanıtlarında asla dönmez).
+    file_data: bytes | None = None
 
 
 class DocumentUpdate(BaseModel):

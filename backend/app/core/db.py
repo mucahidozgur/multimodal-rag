@@ -17,11 +17,12 @@ settings = get_settings()
 def _normalize_db_url(url: str) -> str:
     """Neon-style URL'leri asyncpg'e uyarlar.
 
-    neonctl `?sslmode=require` üretir; bu libpq parametresidir, asyncpg
-    `ssl=require` bekler (asyncpg default 'prefer' da Neon'da çalışır,
-    bu yüzden yalnızca dönüşüm yapılır).
+    neonctl `?sslmode=require` üretir; asyncpg libpq parametrelerini tanımaz
+    (sslmode, channel_binding vb. connect() kwarg hatası verir). asyncpg'in
+    varsayılan SSL davranışı ('prefer') Neon'da yeterli olduğu için tüm
+    query parametreleri bırakılır.
     """
-    return url.replace("sslmode=require", "ssl=require")
+    return url.split("?", 1)[0]
 
 
 engine = create_async_engine(_normalize_db_url(settings.DATABASE_URL), echo=False)

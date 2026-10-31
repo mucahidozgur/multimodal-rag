@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { Document, Page, pdfjs } from "react-pdf";
 
@@ -62,6 +62,15 @@ export default function PDFViewer({
 
   const token = getToken();
 
+  // react-pdf, file/options prop'larının kimliği değişince dokümanı YENİDEN
+  // yükler; her render'da yeni obje üretmek "yükle → state → render → yeniden
+  // yükle" döngüsüne sokar. Nesneleri bir kez üretip sabitle.
+  const fileSource = useMemo(() => ({ url: api.documentFileUrl(documentId) }), [documentId]);
+  const docOptions = useMemo(
+    () => ({ httpHeaders: token ? { Authorization: `Bearer ${token}` } : undefined }),
+    [token]
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white">
@@ -98,8 +107,8 @@ export default function PDFViewer({
 
         <div ref={containerRef} className="flex-1 overflow-auto bg-gray-100 p-4">
           <Document
-            file={{ url: api.documentFileUrl(documentId) }}
-            options={{ httpHeaders: token ? { Authorization: `Bearer ${token}` } : undefined }}
+            file={fileSource}
+            options={docOptions}
             onLoadSuccess={onDocumentLoad}
             onLoadError={(err) => setError(`PDF yüklenemedi: ${(err as Error).message}`)}
             loading={<p className="p-4 text-sm text-gray-500">PDF yükleniyor...</p>}

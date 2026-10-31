@@ -23,4 +23,7 @@ COPY . .
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Render (ve genel PaaS) $PORT env'iyle gelir ve uygulamanın O portu dinlemesini
+# bekler; yerelde (docker compose) PORT set değildir → 8000 kullanılır.
+# Prod'da --reload yok (dosya izleme süreci Render'da gereksizdir).
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -13,7 +13,18 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-engine = create_async_engine(settings.DATABASE_URL, echo=False)
+
+def _normalize_db_url(url: str) -> str:
+    """Neon-style URL'leri asyncpg'e uyarlar.
+
+    neonctl `?sslmode=require` üretir; bu libpq parametresidir, asyncpg
+    `ssl=require` bekler (asyncpg default 'prefer' da Neon'da çalışır,
+    bu yüzden yalnızca dönüşüm yapılır).
+    """
+    return url.replace("sslmode=require", "ssl=require")
+
+
+engine = create_async_engine(_normalize_db_url(settings.DATABASE_URL), echo=False)
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 

@@ -1,5 +1,6 @@
 """Document CRUD endpoint'leri."""
 
+import logging
 from pathlib import Path
 from typing import Annotated
 from uuid import UUID, uuid4
@@ -28,6 +29,8 @@ from app.services.ingestion import DocumentIngestionService
 from app.services.pdf_parser import PDFIngestionService
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+logger = logging.getLogger(__name__)
 
 DbDep = Annotated[AsyncSession, Depends(get_db)]
 UserDep = Annotated[UserInfo, Depends(get_current_user)]
@@ -131,6 +134,10 @@ async def index_document(document_id: UUID, db: DbDep, current_user: UserDep) ->
             result = await service.ingest_document_with_pdf(document_id)
         except FileNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except Exception as exc:
+            # Demo dağıtımı: hatayı çağırana göster (uzaktan teşhis log'suz yapılır).
+            logger.exception("PDF index hatası (document_id=%s)", document_id)
+            raise HTTPException(status_code=500, detail=f"Index hatası: {exc}") from exc
         return IndexResponse(document_id=document_id, source_type="pdf", **result)
 
     result = await service.index_document(document_id)

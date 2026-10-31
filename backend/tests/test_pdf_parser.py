@@ -118,6 +118,13 @@ def test_sanitize_text_strips_control_chars() -> None:
     assert sanitize_text("temiz metin") == "temiz metin"
 
 
+def test_sanitize_text_replaces_lone_surrogates() -> None:
+    """UTF-8'e encode edilemeyen surrogate'ler güvenli karaktere dönüşür."""
+    result = sanitize_text("bozuk\ud800metin\udfff")
+    assert "\ud800" not in result and "\udfff" not in result
+    assert result == "bozuk?metin?"
+
+
 def test_parse_pdf_api(
     app_client: TestClient,
     auth_headers: dict[str, str],

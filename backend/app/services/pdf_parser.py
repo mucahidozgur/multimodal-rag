@@ -28,8 +28,14 @@ _CONTROL_CHARS_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
 def sanitize_text(text: str) -> str:
-    """PDF metninden DB'nin kabul etmediği kontrol karakterlerini ayıklar."""
-    return _CONTROL_CHARS_RE.sub("", text)
+    """PDF metninden DB'nin kabul etmediği karakterleri ayıklar.
+
+    PostgreSQL UTF-8: NUL/C0 kontrol karakterlerini ve UTF-8'e encode
+    edilemeyen (yalnız) surrogate'leri reddeder; bazı PDF fontları/encoding'leri
+    ikisini de metne sızdırabilir.
+    """
+    cleaned = _CONTROL_CHARS_RE.sub("", text)
+    return cleaned.encode("utf-8", errors="replace").decode("utf-8")
 
 
 def table_to_markdown(table: list[list[str | None]]) -> str:

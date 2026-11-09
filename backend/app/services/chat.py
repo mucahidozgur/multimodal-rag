@@ -113,11 +113,34 @@ class ChatService:
         try:
             # Faz 8: sayfa hedefli sorular ("5. sayfada ne var") — ilgili sayfanın
             # chunk'ları doğrudan bağlama alınır (arama semantiğe değil sayfaya
-            # dayanır). Sayfa chunk'ı yoksa normal arama akışına düşer.
+            # dayanır). Sayfada metin yoksa net mesaj döner.
             page_number = extract_page_number(query)
             if page_number is not None:
                 chunks = await self.rag.get_chunks_by_page(document_ids, page_number, limit=top_k)
-            if page_number is None or not chunks:
+                if not chunks:
+                    yield {"event": "sources", "data": []}
+                    yield {
+                        "event": "token",
+                        "data": {"text": f"{page_number}. sayfada metin bulunamadı."},
+                    }
+                    await _write_query_log(
+                        self.db,
+                        log_id=log_id,
+                        query=query,
+                        faithfulness=None,
+                        had_context=False,
+                        latency_ms=_latency_ms(),
+                    )
+                    yield {
+                        "event": "done",
+                        "data": {
+                            "finish_reason": "page_not_found",
+                            "insufficient_context": True,
+                            "log_id": str(log_id),
+                        },
+                    }
+                    return
+            else:
                 if document_ids is not None:
                     # Doküman filtresi istenmişse klasik vektör araması kullan
                     # (hybrid servisinde filtre yok; MIN_SIMILARITY zaten uygulanır).

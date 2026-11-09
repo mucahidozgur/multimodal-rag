@@ -98,43 +98,37 @@ export default function AssistantPage() {
   return (
     <div className="flex h-[calc(100vh-6.5rem)] flex-col">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">AI Asistan</h1>
-        <div className="flex rounded-md border border-gray-300 p-1">
-          <button
-            onClick={() => setMode("chat")}
-            className={`rounded px-3 py-1 text-sm ${
-              mode === "chat"
-                ? "bg-blue-600 text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Chat
-          </button>
-          <button
-            onClick={() => setMode("agent")}
-            className={`rounded px-3 py-1 text-sm ${
-              mode === "agent"
-                ? "bg-blue-600 text-white"
-                : "text-gray-600 hover:bg-gray-100"
-            }`}
-          >
-            Agent
-          </button>
+        <h1 className="text-2xl font-bold text-white">AI Asistan</h1>
+        {/* Segmented control: Chat / Agent */}
+        <div className="flex rounded-lg border border-slate-700 bg-slate-900/60 p-1">
+          {(["chat", "agent"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`rounded-md px-4 py-1 text-sm transition-colors ${
+                mode === m
+                  ? "bg-gradient-to-r from-indigo-500 to-indigo-400 text-white shadow"
+                  : "text-slate-400 hover:text-white"
+              }`}
+            >
+              {m === "chat" ? "Chat" : "Agent"}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="flex flex-1 flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-900/40">
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
           {messages.length === 0 ? (
             <div className="flex min-h-full flex-col items-center justify-center gap-3 text-center">
               <span className="text-5xl">💬</span>
-              <p className="text-gray-600">Dokümanlarınız hakkında soru sorun</p>
+              <p className="text-slate-400">Dokümanlarınız hakkında soru sorun</p>
               <div className="flex flex-wrap justify-center gap-2">
                 {EXAMPLE_QUESTIONS.map((question) => (
                   <button
                     key={question}
                     onClick={() => setInput(question)}
-                    className="rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-600 hover:bg-gray-100"
+                    className="rounded-full border border-slate-700 px-3 py-1 text-sm text-slate-300 hover:bg-slate-800"
                   >
                     {question}
                   </button>
@@ -153,7 +147,7 @@ export default function AssistantPage() {
           <div ref={bottomRef} />
         </div>
 
-        <div className="border-t border-gray-200 p-4">
+        <div className="border-t border-slate-700 p-4">
           <div className="mb-2">
             <DocumentSelector
               documents={documents}
@@ -170,22 +164,22 @@ export default function AssistantPage() {
               disabled={streaming}
               rows={2}
               placeholder="Sorunuzu yazın... (Enter: gönder, Shift+Enter: yeni satır)"
-              className="flex-1 resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-50"
+              className="flex-1 resize-none rounded-md border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white placeholder-slate-500 focus:border-indigo-500 focus:outline-none disabled:bg-slate-900"
             />
             <button
               onClick={() => void handleSend()}
               disabled={streaming || !input.trim()}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className="rounded-md bg-gradient-to-r from-indigo-500 to-emerald-500 px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
             >
               Gönder
             </button>
           </div>
           {mode === "agent" && selectedIds.length === 0 && (
-            <p className="mt-2 text-sm text-amber-600">
+            <p className="mt-2 text-sm text-amber-400">
               ⚠️ Özet/aksiyon/karşılaştırma için önce yukarıdan doküman seçin
             </p>
           )}
-          {streaming && <p className="mt-2 text-sm text-gray-500">Yanıt yazıyor...</p>}
+          {streaming && <p className="mt-2 text-sm text-slate-500">Yanıt yazıyor...</p>}
         </div>
       </div>
 
@@ -198,7 +192,7 @@ export default function AssistantPage() {
         />
       )}
 
-      <p className="mt-2 text-xs text-gray-400">
+      <p className="mt-2 text-xs text-slate-600">
         Chat: dokümanlarınız hakkında soru sorun. Agent: özet/aksiyon/karşılaştırma da yapabilir.
       </p>
     </div>

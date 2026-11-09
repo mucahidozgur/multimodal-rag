@@ -67,20 +67,22 @@ export default function PDFUpload({ onCreated }: PDFUploadProps) {
         onDrop={onDrop}
         onClick={() => document.getElementById("pdf-file-input")?.click()}
         className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
-          dragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:bg-gray-50"
+          dragging
+            ? "border-emerald-400 bg-emerald-500/10"
+            : "border-slate-600 hover:border-slate-500 hover:bg-slate-900/40"
         }`}
       >
         <span className="text-4xl">📄</span>
-        <p className="text-sm text-gray-600">{PHASE_LABELS[phase]}</p>
+        <p className="text-sm text-slate-300">{PHASE_LABELS[phase]}</p>
         {phase === "idle" && (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-slate-500">
             .pdf dosyası — metin, tablo ve grafikler ayrı ayrı indexlenir
           </p>
         )}
         {(phase === "uploading" || phase === "parsing" || phase === "indexing") && (
-          <div className="h-1.5 w-48 overflow-hidden rounded-full bg-gray-200">
+          <div className="h-1.5 w-48 overflow-hidden rounded-full bg-slate-700">
             <div
-              className={`h-full animate-pulse rounded-full bg-blue-600 ${
+              className={`h-full animate-pulse rounded-full bg-gradient-to-r from-indigo-500 to-emerald-400 ${
                 phase === "uploading"
                   ? "w-1/3"
                   : phase === "parsing"
@@ -98,7 +100,9 @@ export default function PDFUpload({ onCreated }: PDFUploadProps) {
         className="hidden"
         onChange={(e) => void handleFile(e.target.files?.[0])}
       />
-      {error && <p className="mt-2 rounded-md bg-red-50 p-2 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-2 rounded-md bg-red-950/60 p-2 text-sm text-red-400">{error}</p>
+      )}
     </div>
   );
 }

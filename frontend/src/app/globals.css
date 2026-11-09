@@ -1,3 +1,23 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Fin-RAG — koyu premium finans teması: koyu lacivert zemin, ince kaydırma çubuğu */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 #0b1120;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #0b1120;
+}

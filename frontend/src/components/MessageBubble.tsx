@@ -32,7 +32,7 @@ export default function MessageBubble({ message, onCitationClick }: MessageBubbl
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl bg-blue-600 px-4 py-2 text-white">
+        <div className="max-w-[80%] whitespace-pre-wrap rounded-2xl bg-indigo-500 px-4 py-2 text-white">
           {message.content}
         </div>
       </div>
@@ -41,13 +41,17 @@ export default function MessageBubble({ message, onCitationClick }: MessageBubbl
 
   function citationChip(label: string, citation: CitationTarget | null, key: string) {
     if (!citation || !onCitationClick) {
-      return <span key={key} className="text-gray-600">{label}</span>;
+      return (
+        <span key={key} className="text-slate-400">
+          {label}
+        </span>
+      );
     }
     return (
       <button
         key={key}
         onClick={() => onCitationClick(citation)}
-        className="rounded-full border border-blue-300 bg-blue-50 px-2 py-0.5 text-xs text-blue-700 hover:bg-blue-100"
+        className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-300 hover:bg-emerald-500/20"
         title="PDF'te konuma git"
       >
         📄 {label}
@@ -60,13 +64,13 @@ export default function MessageBubble({ message, onCitationClick }: MessageBubbl
 
   return (
     <div className="flex justify-start">
-      <div className="max-w-[80%] rounded-2xl border border-gray-200 bg-white px-4 py-3">
+      <div className="max-w-[80%] rounded-2xl border border-slate-700 bg-slate-800/80 px-4 py-3">
         {message.intent && (
-          <span className="mb-2 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+          <span className="mb-2 inline-block rounded-full bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
             intent: {message.intent}
           </span>
         )}
-        <div className="text-gray-900">
+        <div className="text-slate-100">
           {message.content.split("\n").map((line, i) => (
             <p key={i}>{line}</p>
           ))}
@@ -75,12 +79,12 @@ export default function MessageBubble({ message, onCitationClick }: MessageBubbl
           <div className="mt-2">
             <button
               onClick={() => setSourcesOpen((open) => !open)}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-slate-400 hover:text-slate-200"
             >
               📎 Kaynaklar ({message.sources.length})
             </button>
             {sourcesOpen && (
-              <ul className="mt-1 space-y-1 text-sm text-gray-600">
+              <ul className="mt-1 space-y-1 text-sm text-slate-300">
                 {message.sources.map((source, i) => {
                   const label =
                     source.page_number != null
@@ -107,15 +111,15 @@ export default function MessageBubble({ message, onCitationClick }: MessageBubbl
           </div>
         )}
         {message.verification && (
-          <div className="mt-2 rounded-md bg-gray-50 p-2 text-xs">
-            <p className="font-medium text-gray-700">
+          <div className="mt-2 rounded-md bg-slate-900/60 p-2 text-xs">
+            <p className="font-medium text-slate-300">
               {message.verification.verified
                 ? "✅ Tüm cümleler kaynaklarla destekleniyor"
                 : "⚠️ Bazı cümleler kaynaklarla desteklenmiyor"}
               {" · "}doğruluk {message.verification.faithfulness.toFixed(2)}
             </p>
             {message.verification.unsupported.length > 0 && (
-              <ul className="mt-1 list-inside list-disc text-red-600">
+              <ul className="mt-1 list-inside list-disc text-red-400">
                 {message.verification.unsupported.map((sentence, i) => (
                   <li key={i}>{sentence}</li>
                 ))}
@@ -138,10 +142,10 @@ export default function MessageBubble({ message, onCitationClick }: MessageBubbl
             )}
           </div>
         )}
-        {message.error && <p className="mt-2 text-sm text-red-600">{message.error}</p>}
+        {message.error && <p className="mt-2 text-sm text-red-400">{message.error}</p>}
         {!message.done && (
           <div className="mt-1 text-right">
-            <span className="animate-pulse">▍</span>
+            <span className="animate-pulse text-emerald-400">▍</span>
           </div>
         )}
       </div>

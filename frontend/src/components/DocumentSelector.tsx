@@ -45,50 +45,50 @@ export default function DocumentSelector({
     <div ref={wrapperRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+        className="rounded-md border border-slate-700 bg-slate-800 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700"
       >
         📄 Doküman seç ({selectedIds.length}/{documents.length})
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 z-10 mb-2 max-h-64 w-80 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
-          <div className="mb-2 flex items-center justify-between border-b border-gray-100 pb-2 text-xs">
+        <div className="absolute bottom-full left-0 z-10 mb-2 max-h-64 w-80 overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 p-2 shadow-2xl">
+          <div className="mb-2 flex items-center justify-between border-b border-slate-700 pb-2 text-xs">
             <button
               onClick={() => onChange(documents.map((d) => d.id))}
-              className="text-blue-600 hover:underline"
+              className="text-emerald-400 hover:underline"
             >
               Tümünü seç
             </button>
             <button
               onClick={() => onChange([])}
-              className="text-gray-500 hover:underline"
+              className="text-slate-400 hover:underline"
             >
               Temizle
             </button>
           </div>
           {documents.length === 0 ? (
-            <p className="p-2 text-sm text-gray-500">Henüz doküman yok.</p>
+            <p className="p-2 text-sm text-slate-400">Henüz doküman yok.</p>
           ) : (
             documents.map((doc) => (
               <label
                 key={doc.id}
-                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-gray-50"
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-slate-700"
               >
                 <input
                   type="checkbox"
                   checked={selectedIds.includes(doc.id)}
                   onChange={() => toggle(doc.id)}
-                  className="h-4 w-4"
+                  className="h-4 w-4 accent-indigo-500"
                 />
-                <span className="flex-1 truncate text-sm text-gray-800">{doc.title}</span>
-                <span className="shrink-0 text-xs text-gray-400">
+                <span className="flex-1 truncate text-sm text-slate-200">{doc.title}</span>
+                <span className="shrink-0 text-xs text-slate-500">
                   {formatDate(doc.created_at)}
                 </span>
               </label>
             ))
           )}
           {mode === "agent" && (
-            <p className="mt-2 border-t border-gray-100 pt-2 text-xs text-gray-500">
+            <p className="mt-2 border-t border-slate-700 pt-2 text-xs text-slate-400">
               Agent araçları için en az 1-2 doküman seçin
             </p>
           )}

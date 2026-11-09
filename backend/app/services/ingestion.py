@@ -17,6 +17,9 @@ from app.services.vision import VisionService
 
 logger = logging.getLogger(__name__)
 
+# Cloudflare Workers AI embedding batch sınırı (100 metin/istek) altında kal.
+EMBED_BATCH_SIZE = 100
+
 
 class DocumentIngestionService:
     """Dokümanı chunk'layıp embedding'lerini chunks tablosuna yazar."""
@@ -71,16 +74,20 @@ class DocumentIngestionService:
         """Sayfa metinlerini chunk'layıp embed eder (chunk_type="text").
 
         chunk_index doküman genelinde akan bir sayaçla verilir (sayfalar
-        sıralı işlendiği için doküman sırası korunur).
+        sıralı işlendiği için doküman sırası korunur). Embedding'ler batch
+        halinde (en fazla 100) gönderilir — bulut sağlayıcıda sayfa başına
+        ayrı HTTP çağrısı yapılmaz, index süresi ciddi kısalır.
         """
-        chunks_added = 0
+        pending: list[tuple[PDFPage, dict]] = []  # (sayfa, chunk parçası)
         for page in pages:
             if not page.raw_text:
                 continue
-            pieces = chunk_text_hierarchical(page.raw_text)
-            if not pieces:
-                continue
-            embeddings = self.embeddings.embed_documents([p["content"] for p in pieces])
+            pending.extend((page, piece) for piece in chunk_text_hierarchical(page.raw_text))
+
+        chunks_added = 0
+        for batch_start in range(0, len(pending), EMBED_BATCH_SIZE):
+            batch = pending[batch_start : batch_start + EMBED_BATCH_SIZE]
+            embeddings = self.embeddings.embed_documents([p["content"] for _, p in batch])
             self.db.add_all(
                 [
                     Chunk(
@@ -94,10 +101,12 @@ class DocumentIngestionService:
                         page_number=page.page_number,
                         bbox=page.bbox,
                     )
-                    for i, (piece, embedding) in enumerate(zip(pieces, embeddings, strict=True))
+                    for i, ((page, piece), embedding) in enumerate(
+                        zip(batch, embeddings, strict=True), start=batch_start
+                    )
                 ]
             )
-            chunks_added += len(pieces)
+        chunks_added += len(pending)
         return chunks_added
 
     async def ingest_tables(self, tables: list[PDFTable]) -> int:

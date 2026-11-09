@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Fin-RAG",
@@ -13,7 +16,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr">
-      <body className="bg-gray-50 text-gray-900 antialiased">{children}</body>
+      <body
+        className={`${inter.className} bg-[#0B1120] text-slate-100 antialiased`}
+      >
+        {children}
+      </body>
     </html>
   );
 }

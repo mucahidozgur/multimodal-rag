@@ -99,27 +99,27 @@ export default function DashboardPage() {
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Dokümanlar</h1>
+        <h1 className="text-2xl font-bold text-white">Dokümanlar</h1>
         <button
           onClick={() => setModalOpen(true)}
-          className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          className="rounded-md bg-gradient-to-r from-indigo-500 to-emerald-500 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
         >
           Yeni Doküman
         </button>
       </div>
 
       {loading ? (
-        <p className="text-gray-500">Yükleniyor...</p>
+        <p className="text-slate-400">Yükleniyor...</p>
       ) : error ? (
-        <p className="rounded-md bg-red-50 p-3 text-sm text-red-600">{error}</p>
+        <p className="rounded-md bg-red-950/60 p-3 text-sm text-red-400">{error}</p>
       ) : documents.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
-          <p className="text-gray-500">
+          <p className="text-slate-400">
             Henüz dokümanınız yok. İlk dokümanınızı oluşturun.
           </p>
           <button
             onClick={() => setModalOpen(true)}
-            className="rounded-md bg-blue-600 px-6 py-3 text-base font-medium text-white hover:bg-blue-700"
+            className="rounded-md bg-gradient-to-r from-indigo-500 to-emerald-500 px-6 py-3 text-base font-medium text-white hover:opacity-90"
           >
             Yeni Doküman
           </button>
@@ -147,7 +147,7 @@ export default function DashboardPage() {
       )}
 
       {toast && (
-        <div className="fixed bottom-4 right-4 z-50 rounded-lg bg-gray-900 px-4 py-2 text-white shadow-lg">
+        <div className="fixed bottom-4 right-4 z-50 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-white shadow-xl">
           {toast}
         </div>
       )}

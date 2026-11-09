@@ -72,16 +72,16 @@ export default function PDFViewer({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white">
-        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-          <h2 className="text-lg font-semibold">PDF Görüntüleyici</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="flex h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-slate-700 bg-slate-800 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-700 px-4 py-3">
+          <h2 className="text-lg font-semibold text-white">PDF Görüntüleyici</h2>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-slate-300">
               <button
                 onClick={() => setPageNumber((p) => Math.max(1, p - 1))}
                 disabled={pageNumber <= 1}
-                className="rounded-md border border-gray-300 px-2 py-1 hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-md border border-slate-600 px-2 py-1 hover:bg-slate-700 disabled:opacity-50"
               >
                 ←
               </button>
@@ -91,28 +91,28 @@ export default function PDFViewer({
               <button
                 onClick={() => setPageNumber((p) => Math.min(numPages, p + 1))}
                 disabled={pageNumber >= numPages}
-                className="rounded-md border border-gray-300 px-2 py-1 hover:bg-gray-100 disabled:opacity-50"
+                className="rounded-md border border-slate-600 px-2 py-1 hover:bg-slate-700 disabled:opacity-50"
               >
                 →
               </button>
             </div>
             <button
               onClick={onClose}
-              className="rounded-md border border-gray-300 px-3 py-1 text-sm hover:bg-gray-100"
+              className="rounded-md border border-slate-600 px-3 py-1 text-sm text-slate-300 hover:bg-slate-700"
             >
               Kapat
             </button>
           </div>
         </div>
 
-        <div ref={containerRef} className="flex-1 overflow-auto bg-gray-100 p-4">
+        <div ref={containerRef} className="flex-1 overflow-auto bg-slate-900/60 p-4">
           <Document
             file={fileSource}
             options={docOptions}
             onLoadSuccess={onDocumentLoad}
             onLoadError={(err) => setError(`PDF yüklenemedi: ${(err as Error).message}`)}
-            loading={<p className="p-4 text-sm text-gray-500">PDF yükleniyor...</p>}
-            error={<p className="p-4 text-sm text-red-600">PDF yüklenemedi</p>}
+            loading={<p className="p-4 text-sm text-slate-400">PDF yükleniyor...</p>}
+            error={<p className="p-4 text-sm text-red-400">PDF yüklenemedi</p>}
             className="mx-auto flex flex-col items-center"
           >
             <div className="relative">
@@ -122,11 +122,11 @@ export default function PDFViewer({
                 onLoadSuccess={onPageLoad}
                 renderTextLayer={false}
                 renderAnnotationLayer={false}
-                loading={<p className="p-4 text-sm text-gray-500">Sayfa yükleniyor...</p>}
+                loading={<p className="p-4 text-sm text-slate-400">Sayfa yükleniyor...</p>}
               />
               {overlay && (
                 <div
-                  className="pointer-events-none absolute rounded-sm border-2 border-orange-500 bg-yellow-300/40"
+                  className="pointer-events-none absolute rounded-sm border-2 border-orange-400 bg-yellow-300/40"
                   style={{
                     left: overlay.left,
                     top: overlay.top,
@@ -138,7 +138,7 @@ export default function PDFViewer({
               )}
             </div>
           </Document>
-          {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+          {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
         </div>
       </div>
     </div>

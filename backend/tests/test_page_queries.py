@@ -157,13 +157,13 @@ def _collect_events(app_client: TestClient, body: dict, headers: dict[str, str])
     return events
 
 
-async def test_chat_page_question_uses_page_chunks(
+async def test_chat_specific_page_query(
     app_client: TestClient,
     auth_headers: dict[str, str],
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """'5. sayfada ne var' sorusu sayfa 5 chunk'larıyla cevaplanır."""
+    """'5. sayfada ne var' sorusu doğrudan sayfa 5 chunk'larıyla cevaplanır."""
     # Dokümanı alice'e ait yap (auth ile görünür olsun).
     doc = Document(title="rehber", content="", owner_id=ALICE_ID)
     db_session.add(doc)
@@ -200,3 +200,22 @@ async def test_chat_page_question_uses_page_chunks(
     assert PAGE5_CONTENT in tokens
     assert PAGE6_CONTENT not in tokens  # yalnızca sayfa 5 bağlamda
     assert echo.captured and "sayfa 5" in echo.captured[0]
+
+
+async def test_chat_specific_page_query_not_found(
+    app_client: TestClient,
+    auth_headers: dict[str, str],
+    db_session: AsyncSession,
+) -> None:
+    """Sayfada kayıtlı metin yoksa net 'metin bulunamadı' mesajı döner."""
+    doc = Document(title="rehber", content="", owner_id=ALICE_ID)
+    db_session.add(doc)
+    await db_session.commit()
+
+    events = _collect_events(
+        app_client, {"query": "99. sayfada ne var", "verify": False}, auth_headers
+    )
+    tokens = "".join(data["text"] for name, data in events if name == "token")
+    assert "99. sayfada metin bulunamadı" in tokens
+    done = next(data for name, data in events if name == "done")
+    assert done["finish_reason"] == "page_not_found"

@@ -49,15 +49,21 @@ def build_context_block(chunks: list[dict[str, Any]]) -> str:
     """Chunk listesini LLM'e verilecek context bloğuna çevirir.
 
     Her chunk için:
-      [Kaynak {i+1}] {document_title} (parça {chunk_index})
+      [Kaynak {i+1}] {document_title} (sayfa {page_number}, parça {chunk_index})
       {content}
       ---
+    Sayfa bilgisi yoksa (eski chunk'lar) yalnızca parça numarası yazılır.
     """
-    blocks = [
-        f"[Kaynak {i + 1}] {chunk['document_title']} (parça {chunk['chunk_index']})\n"
-        f"{chunk['content']}\n---"
-        for i, chunk in enumerate(chunks)
-    ]
+    blocks = []
+    for i, chunk in enumerate(chunks):
+        page = chunk.get("page_number")
+        if page is not None:
+            location = f"sayfa {page}, parça {chunk['chunk_index']}"
+        else:
+            location = f"parça {chunk['chunk_index']}"
+        blocks.append(
+            f"[Kaynak {i + 1}] {chunk['document_title']} ({location})\n" f"{chunk['content']}\n---"
+        )
     return "\n".join(blocks)
 
 

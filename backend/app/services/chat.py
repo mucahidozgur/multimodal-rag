@@ -6,6 +6,7 @@ Her istek query_logs'a yazılır (analitik panosu).
 """
 
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from uuid import UUID, uuid4
@@ -28,6 +29,22 @@ INSUFFICIENT_CONTEXT_ANSWER = (
     "Bu bilgi knowledge base'de bulunmuyor. Lütfen ilgili dokümanı kontrol edin "
     "veya uzmanınıza danışın."
 )
+
+# "5. sayfada ne var", "sayfa 12 özeti", "what is on page 3" gibi sayfa
+# hedefli sorular — sayı önde veya arkada olabilir (grup 1 veya grup 2).
+_PAGE_QUERY_RE = re.compile(
+    r"(?:(\d+)\s*(?:\.|,|-)?\s*(?:sayfa(?:da|sı|sında|nın)?|page)\b"
+    r"|(?:sayfa(?:da|sı|sında|nın)?|page)\s*(\d+)\b)",
+    re.IGNORECASE,
+)
+
+
+def extract_page_number(query: str) -> int | None:
+    """Sorgudan hedef sayfa numarasını çıkarır; yoksa None."""
+    match = _PAGE_QUERY_RE.search(query)
+    if not match:
+        return None
+    return int(match.group(1) or match.group(2))
 
 
 async def _write_query_log(
@@ -94,12 +111,19 @@ class ChatService:
             return int((time.perf_counter() - start) * 1000)
 
         try:
-            if document_ids is not None:
-                # Doküman filtresi istenmişse klasik vektör araması kullan
-                # (hybrid servisinde filtre yok; MIN_SIMILARITY zaten uygulanır).
-                chunks = await self.rag.search(query, document_ids, limit=top_k)
-            else:
-                chunks = await self.rag.search_hybrid_rerank(query=query, limit=top_k)
+            # Faz 8: sayfa hedefli sorular ("5. sayfada ne var") — ilgili sayfanın
+            # chunk'ları doğrudan bağlama alınır (arama semantiğe değil sayfaya
+            # dayanır). Sayfa chunk'ı yoksa normal arama akışına düşer.
+            page_number = extract_page_number(query)
+            if page_number is not None:
+                chunks = await self.rag.get_chunks_by_page(document_ids, page_number, limit=top_k)
+            if page_number is None or not chunks:
+                if document_ids is not None:
+                    # Doküman filtresi istenmişse klasik vektör araması kullan
+                    # (hybrid servisinde filtre yok; MIN_SIMILARITY zaten uygulanır).
+                    chunks = await self.rag.search(query, document_ids, limit=top_k)
+                else:
+                    chunks = await self.rag.search_hybrid_rerank(query=query, limit=top_k)
 
             if not has_sufficient_context(chunks):
                 yield {"event": "sources", "data": []}

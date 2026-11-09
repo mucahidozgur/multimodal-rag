@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     CLOUDFLARE_API_TOKEN: str = ""  # Workers AI token'ı (ücretsiz katman)
     CLOUDFLARE_EMBEDDING_MODEL: str = "@cf/baai/bge-small-en-v1.5"
     RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    # Faz 7: cross-encoder reranker anahtarı. Render free tier'da (~512MB)
+    # 2GB'lık model riskli; false yapılırsa düz hybrid sonuç kullanılır.
+    RERANK_ENABLED: bool = True
     JWT_SECRET: str = "changeme"
     JWT_ALG: str = "HS256"
     JWT_EXPIRE_MIN: int = 60

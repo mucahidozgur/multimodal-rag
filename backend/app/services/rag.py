@@ -5,9 +5,12 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.core.llm import get_embeddings, get_reranker
 from app.core.observability import observe_rag, update_observation_input
 from app.models.document import Chunk, Document
+
+settings = get_settings()
 
 # Bu eşiğin altındaki benzerlikler ilgisiz kabul edilir. Faz 3a'da gerçek modelle
 # ölçülerek belirlendi: ilgili sorgu 0.68-0.82, ilgisiz sorgu 0.40-0.47 üretti.
@@ -222,6 +225,45 @@ class RAGService:
         ranked.sort(key=lambda r: (r["rerank_score"], str(r["chunk_id"])), reverse=True)
         return ranked[:top_k]
 
+    async def get_chunks_by_page(
+        self,
+        document_ids: list[UUID] | None,
+        page_number: int,
+        limit: int = 10,
+    ) -> list[dict]:
+        """Belirtilen doküman(lar)daki sayfanın chunk'larını döndürür.
+
+        "5. sayfada ne var" gibi sayfa hedefli sorular için doğrudan bağlam
+        kurar; similarity=1.0 (skor değil, doğrudan seçim). document_ids
+        verilmezse kullanıcının tüm dokümanlarında aranır.
+        """
+        stmt = (
+            select(Chunk, Document.title)
+            .join(Document, Document.id == Chunk.document_id)
+            .where(Document.owner_id == self.owner_id)
+            .where(Chunk.page_number == page_number)
+            .order_by(Chunk.chunk_index)
+            .limit(limit)
+        )
+        if document_ids:
+            stmt = stmt.where(Chunk.document_id.in_(document_ids))
+        rows = (await self.db.execute(stmt)).all()
+        return [
+            {
+                "chunk_id": chunk.id,
+                "document_id": chunk.document_id,
+                "document_title": title,
+                "content": chunk.content,
+                "similarity": 1.0,  # doğrudan sayfa seçimi — skorlanmadı
+                "chunk_index": chunk.chunk_index,
+                "heading": chunk.heading,
+                "chunk_type": chunk.chunk_type,
+                "page_number": chunk.page_number,
+                "bbox": chunk.bbox,
+            }
+            for chunk, title in rows
+        ]
+
     async def search_hybrid_rerank(
         self,
         query: str,
@@ -240,7 +282,14 @@ class RAGService:
         expand_context=True ise (parent retrieval): en iyi chunk'ın heading'i
         alınır ve aynı başlıktaki diğer chunk'lar sonuca eklenir (rerank'te
         zaten olanlar çıkarılır; eklenenler expanded=True işaretlenir).
+
+        RERANK_ENABLED=false ise (Render free tier — 2GB model RAM'e sığmaz)
+        rerank atlanır, düz hybrid sonuç döner.
         """
+        if not settings.RERANK_ENABLED:
+            return await self.search_hybrid(
+                query, limit=limit, alpha=alpha, chunk_types=chunk_types
+            )
         candidates = await self.search_hybrid(
             query, limit=rerank_candidates, alpha=alpha, chunk_types=chunk_types
         )
